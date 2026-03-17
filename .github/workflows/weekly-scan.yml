@@ -1,0 +1,106 @@
+name: Weekly LocalStack Compatibility Scan
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Monday 6 AM UTC
+  workflow_dispatch:       # Allow manual runs
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+  PULUMI_CONFIG_PASSPHRASE: localstack-scanner
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy-pages.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Install Pulumi CLI
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> $GITHUB_PATH
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install project dependencies
+        run: uv sync
+
+      - name: Install IaC wrapper tools
+        run: |
+          uv pip install \
+            aws-cdk-local \
+            aws-sam-cli-local \
+            awscli-local \
+            terraform-local \
+            pulumi-local
+
+      - name: Install global npm tools
+        run: npm install -g aws-cdk serverless
+
+      - name: Start LocalStack Pro
+        uses: LocalStack/setup-localstack@v0.2.5
+        with:
+          use-pro: 'true'
+          image-tag: latest
+          install-awslocal: 'true'
+
+      - name: Verify tool versions
+        run: |
+          cdklocal --version
+          samlocal --version
+          tflocal --version
+          terraform --version
+          pulumi version
+
+      - name: Run full scan pipeline
+        run: uv run scanner run --max-repos-per-org 500 --external-localstack
+
+      - name: Commit data changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || \
+            (git commit -m "chore: update scan data $(date -u +%Y-%m-%d)" && \
+            git push)
+
+      - name: Configure GitHub Pages
+        id: configure-pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reports/
+
+      - name: Deploy to GitHub Pages
+        id: deploy-pages
+        uses: actions/deploy-pages@v4
