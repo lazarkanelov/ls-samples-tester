@@ -59,9 +59,9 @@ Type: Feature
 - [x] Task 3: Pre-commit hooks
 - [x] Task 4: .env.example + ruff config
 - [x] Task 5: README.md with setup guide
-- [ ] Task 6: Create GitHub repo and push
+- [x] Task 6: Create GitHub repo and push
 
-**Total Tasks:** 6 | **Completed:** 5 | **Remaining:** 1
+**Total Tasks:** 6 | **Completed:** 6 | **Remaining:** 0
 
 ## Implementation Tasks
 
