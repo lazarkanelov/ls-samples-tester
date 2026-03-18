@@ -60,6 +60,7 @@ jobs:
             awscli-local \
             terraform-local \
             pulumi-local
+          echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
 
       - name: Install global npm tools
         run: npm install -g aws-cdk aws-cdk-local serverless
