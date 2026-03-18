@@ -1,0 +1,58 @@
+{
+  "scan_date": "2026-03-18",
+  "total_samples": 3,
+  "results": [
+    {
+      "sample_name": "eks-workshop-v2",
+      "org": "aws-samples",
+      "status": "SUCCESS",
+      "duration": 4.056558375000009,
+      "stdout": "\n\u001b[0m\u001b[1m\u001b[32mNo changes.\u001b[0m\u001b[1m Your infrastructure matches the configuration.\u001b[0m\n\n\u001b[0mTerraform has compared your real infrastructure against your configuration\nand found no differences, so no changes are needed.\n\u001b[0m\u001b[1m\u001b[32m\nApply complete! Resources: 0 added, 0 changed, 0 destroyed.\u001b[0m\n",
+      "stderr": "",
+      "error_message": null,
+      "services_used": [],
+      "deployer_command": "tflocal apply",
+      "iac_type": "TERRAFORM",
+      "cloud_provider": "AWS"
+    },
+    {
+      "sample_name": "terraform-eks-code",
+      "org": "aws-samples",
+      "status": "SUCCESS",
+      "duration": 2.6359697230000165,
+      "stdout": "\n\u001b[0m\u001b[1m\u001b[32mNo changes.\u001b[0m\u001b[1m Your infrastructure matches the configuration.\u001b[0m\n\n\u001b[0mTerraform has compared your real infrastructure against your configuration\nand found no differences, so no changes are needed.\n\u001b[0m\u001b[1m\u001b[32m\nApply complete! Resources: 0 added, 0 changed, 0 destroyed.\u001b[0m\n",
+      "stderr": "",
+      "error_message": null,
+      "services_used": [],
+      "deployer_command": "tflocal apply",
+      "iac_type": "TERRAFORM",
+      "cloud_provider": "AWS"
+    },
+    {
+      "sample_name": "karpenter-blueprints",
+      "org": "aws-samples",
+      "status": "SUCCESS",
+      "duration": 2.683584945000007,
+      "stdout": "\n\u001b[0m\u001b[1m\u001b[32mNo changes.\u001b[0m\u001b[1m Your infrastructure matches the configuration.\u001b[0m\n\n\u001b[0mTerraform has compared your real infrastructure against your configuration\nand found no differences, so no changes are needed.\n\u001b[0m\u001b[1m\u001b[32m\nApply complete! Resources: 0 added, 0 changed, 0 destroyed.\u001b[0m\n",
+      "stderr": "",
+      "error_message": null,
+      "services_used": [],
+      "deployer_command": "tflocal apply",
+      "iac_type": "TERRAFORM",
+      "cloud_provider": "AWS"
+    }
+  ],
+  "tool_versions": {
+    "cdklocal": "cdklocal v3.0.1\ncdk cli version v2.1111.0",
+    "samlocal": "SAM CLI, version 1.155.2",
+    "tflocal": "Terraform v1.14.7\non linux_amd64",
+    "pulumilocal": "Config strategy: None\nConfig strategy is not recognised. Falling back to default (\"overwrite\").\nv3.226.0"
+  },
+  "summary": {
+    "success": 3,
+    "failure": 0,
+    "timeout": 0,
+    "unsupported": 0,
+    "skipped": 0
+  }
+}

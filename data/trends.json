@@ -1,0 +1,21 @@
+[
+  {
+    "date": "2026-03-18",
+    "total": 3,
+    "success": 3,
+    "failure": 0,
+    "timeout": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "by_iac_type": {
+      "TERRAFORM": {
+        "success": 3
+      }
+    },
+    "by_cloud": {
+      "AWS": {
+        "success": 3
+      }
+    }
+  }
+]
