@@ -53,17 +53,16 @@ jobs:
       - name: Install project dependencies
         run: uv sync
 
-      - name: Install IaC wrapper tools
+      - name: Install IaC wrapper tools (Python)
         run: |
           uv pip install \
-            aws-cdk-local \
             aws-sam-cli-local \
             awscli-local \
             terraform-local \
             pulumi-local
 
       - name: Install global npm tools
-        run: npm install -g aws-cdk serverless
+        run: npm install -g aws-cdk aws-cdk-local serverless
 
       - name: Start LocalStack Pro
         uses: LocalStack/setup-localstack@v0.2.5
