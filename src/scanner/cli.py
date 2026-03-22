@@ -120,6 +120,7 @@ def scan(ctx: click.Context, limit: int | None, external_localstack: bool, local
     click.echo(
         f"\nScan complete: {scan_report.success_count} passed, "
         f"{scan_report.failure_count} failed, "
+        f"{scan_report.partial_count} partial, "
         f"{scan_report.timeout_count} timed out, "
         f"{scan_report.unsupported_count} unsupported"
     )
