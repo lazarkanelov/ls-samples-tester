@@ -55,29 +55,29 @@
   },
   {
     "date": "2026-03-22",
-    "total": 10,
-    "success": 4,
-    "failure": 5,
+    "total": 15,
+    "success": 7,
+    "failure": 7,
     "timeout": 0,
     "unsupported": 0,
     "skipped": 0,
     "by_iac_type": {
       "TERRAFORM": {
         "partial": 1,
-        "success": 4,
-        "failure": 5
+        "success": 7,
+        "failure": 7
       }
     },
     "by_cloud": {
       "AWS": {
         "partial": 1,
-        "success": 4,
-        "failure": 5
+        "success": 7,
+        "failure": 7
       }
     },
     "by_failure_category": {
-      "NOT_CLASSIFIED": 3,
-      "DEPLOYER_ERROR": 2
+      "NOT_CLASSIFIED": 4,
+      "DEPLOYER_ERROR": 3
     }
   }
 ]
