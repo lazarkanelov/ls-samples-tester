@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from scanner.config import CloudProvider, Config, IaCType
-from scanner.models import DeployResult, DeployStatus, Sample
+from scanner.models import DeployResult, DeployStatus, FailureCategory, Sample
 
 
 def _make_sample(iac_type: IaCType = IaCType.CLOUDFORMATION, name: str = "test-repo") -> Sample:
@@ -52,11 +52,33 @@ def _make_orchestrator(sandbox: MagicMock | None = None):
 # ---------------------------------------------------------------------------
 
 
+def _make_verify_mocks(passed: bool = True, has_resources: bool = True):
+    """Helper to create ResourceVerifier and ScriptDetector mocks."""
+    from scanner.script_detector import ScriptOutcome
+    from scanner.verifier import VerifyOutcome
+
+    mock_verifier_cls = MagicMock()
+    summary = "All passed" if passed else "Lambda fn: FAILED"
+    outcome = VerifyOutcome(passed=passed, summary=summary, details=["detail"])
+    mock_verifier_cls.return_value.verify.return_value = outcome
+
+    mock_detector_cls = MagicMock()
+    mock_detector_cls.return_value.detect.return_value = []
+    mock_detector_cls.return_value.run.return_value = ScriptOutcome(
+        passed=True, summary="No test scripts found"
+    )
+    return mock_verifier_cls, mock_detector_cls
+
+
 class TestScanOrchestrator:
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
     @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
     @patch("scanner.runner.orchestrator.time.sleep")
     @patch("scanner.runner.orchestrator.get_deployer")
-    def test_run_resets_state_for_each_sample(self, mock_get_deployer, mock_sleep, _):
+    def test_run_resets_state_for_each_sample(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
         samples = [_make_sample(), _make_sample(name="repo2")]
         ls_manager = MagicMock()
         mock_sandbox = MagicMock()
@@ -65,16 +87,24 @@ class TestScanOrchestrator:
         mock_deployer.prepare.return_value = True
         mock_deployer.deploy.return_value = _make_result()
         mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.side_effect = mock_verifier_cls.side_effect
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
 
         orch, _ = _make_orchestrator(mock_sandbox)
         orch.run(samples, ls_manager)
 
         assert ls_manager.reset.call_count == 2
 
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
     @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
     @patch("scanner.runner.orchestrator.time.sleep")
     @patch("scanner.runner.orchestrator.get_deployer")
-    def test_run_returns_scan_report(self, mock_get_deployer, mock_sleep, _):
+    def test_run_returns_scan_report(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
         from scanner.models import ScanReport
 
         samples = [_make_sample()]
@@ -85,6 +115,9 @@ class TestScanOrchestrator:
         mock_deployer.prepare.return_value = True
         mock_deployer.deploy.return_value = _make_result()
         mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
 
         orch, _ = _make_orchestrator(mock_sandbox)
         report = orch.run(samples, ls_manager)
@@ -92,19 +125,26 @@ class TestScanOrchestrator:
         assert isinstance(report, ScanReport)
         assert len(report.results) == 1
 
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
     @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
     @patch("scanner.runner.orchestrator.time.sleep")
     @patch("scanner.runner.orchestrator.get_deployer")
-    def test_run_bootstraps_before_cdk_sample(self, mock_get_deployer, mock_sleep, _):
+    def test_run_bootstraps_before_cdk_sample(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
         samples = [_make_sample(iac_type=IaCType.CDK)]
         ls_manager = MagicMock()
         mock_sandbox = MagicMock()
         mock_sandbox.clone_sample.return_value = Path("/tmp/test")
         mock_deployer = MagicMock()
-        mock_deployer.bootstrap.return_value = True
+        mock_deployer.bootstrap.return_value = (True, "")
         mock_deployer.prepare.return_value = True
         mock_deployer.deploy.return_value = _make_result()
         mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
 
         orch, _ = _make_orchestrator(mock_sandbox)
         orch.run(samples, ls_manager)
@@ -114,22 +154,30 @@ class TestScanOrchestrator:
     @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
     @patch("scanner.runner.orchestrator.time.sleep")
     @patch("scanner.runner.orchestrator.get_deployer")
-    def test_run_skips_cdk_sample_if_bootstrap_fails(self, mock_get_deployer, mock_sleep, _):
+    def test_run_records_failure_if_cdk_bootstrap_fails(self, mock_get_deployer, mock_sleep, _):
+        """Bootstrap failure produces FAILURE+DEPLOYER_ERROR, not SKIPPED."""
         samples = [_make_sample(iac_type=IaCType.CDK)]
         ls_manager = MagicMock()
         mock_deployer = MagicMock()
-        mock_deployer.bootstrap.return_value = False
+        mock_deployer.bootstrap.return_value = (False, "CDK bootstrap failed: account not resolved")
         mock_get_deployer.return_value = mock_deployer
 
         orch, _ = _make_orchestrator()
         report = orch.run(samples, ls_manager)
 
-        assert report.results[0].status == DeployStatus.SKIPPED
+        result = report.results[0]
+        assert result.status == DeployStatus.FAILURE
+        assert result.failure_category == FailureCategory.DEPLOYER_ERROR
+        assert result.error_message == "CDK bootstrap failed: account not resolved"
 
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
     @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
     @patch("scanner.runner.orchestrator.time.sleep")
     @patch("scanner.runner.orchestrator.get_deployer")
-    def test_run_records_failure_if_prepare_fails(self, mock_get_deployer, mock_sleep, _):
+    def test_run_records_failure_if_prepare_fails(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
         samples = [_make_sample()]
         ls_manager = MagicMock()
         mock_sandbox = MagicMock()
@@ -143,10 +191,67 @@ class TestScanOrchestrator:
 
         assert report.results[0].status == DeployStatus.FAILURE
 
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
     @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
     @patch("scanner.runner.orchestrator.time.sleep")
     @patch("scanner.runner.orchestrator.get_deployer")
-    def test_run_calls_cleanup_after_deploy(self, mock_get_deployer, mock_sleep, _):
+    def test_run_classifies_failure_results(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
+        """Every non-SUCCESS result must have failure_category set by the classifier."""
+        from scanner.models import DeployStatus
+
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.FAILURE)
+        mock_get_deployer.return_value = mock_deployer
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        result = report.results[0]
+        assert result.status == DeployStatus.FAILURE
+        assert result.failure_category is not None
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_does_not_set_category_for_success(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
+        """SUCCESS results must not have failure_category set."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        assert report.results[0].failure_category is None
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_calls_cleanup_after_deploy(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
         samples = [_make_sample()]
         ls_manager = MagicMock()
         mock_sandbox = MagicMock()
@@ -155,6 +260,296 @@ class TestScanOrchestrator:
         mock_deployer.prepare.return_value = True
         mock_deployer.deploy.return_value = _make_result()
         mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        mock_deployer.cleanup.assert_called_once()
+
+    # -----------------------------------------------------------------------
+    # Verification tests
+    # -----------------------------------------------------------------------
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_sets_partial_when_verification_fails(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """Deploy SUCCESS + verify FAIL → PARTIAL status."""
+        from scanner.script_detector import ScriptOutcome
+        from scanner.verifier import VerifyOutcome
+
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+
+        # Verifier: Lambda fails
+        mock_verifier_cls.return_value.verify.return_value = VerifyOutcome(
+            passed=False, summary="Lambda fn: FAILED", details=["Lambda fn: FAILED (error)"]
+        )
+        mock_detector_cls.return_value.detect.return_value = []
+        mock_detector_cls.return_value.run.return_value = ScriptOutcome(
+            passed=True, summary="No test scripts found"
+        )
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        result = report.results[0]
+        assert result.status == DeployStatus.PARTIAL
+        assert result.verification_status == "FAILED"
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_keeps_success_when_verification_passes(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """Deploy SUCCESS + verify PASS → stays SUCCESS."""
+        from scanner.script_detector import ScriptOutcome
+        from scanner.verifier import VerifyOutcome
+
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+
+        mock_verifier_cls.return_value.verify.return_value = VerifyOutcome(
+            passed=True, summary="All passed", details=["Lambda fn: OK"]
+        )
+        mock_detector_cls.return_value.detect.return_value = []
+        mock_detector_cls.return_value.run.return_value = ScriptOutcome(
+            passed=True, summary="No test scripts found"
+        )
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        result = report.results[0]
+        assert result.status == DeployStatus.SUCCESS
+        assert result.verification_status == "PASSED"
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_does_not_verify_failed_deploys(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """Verification only runs for SUCCESS deploys."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.FAILURE)
+        mock_get_deployer.return_value = mock_deployer
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        # ResourceVerifier.verify() must NOT be called for failed deploys
+        mock_verifier_cls.return_value.verify.assert_not_called()
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_does_not_crash_when_verification_raises(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """Verification exception must not crash the scan."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls.return_value.verify.side_effect = RuntimeError("awslocal crashed")
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)  # must not raise
+
+        assert len(report.results) == 1
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_skips_verification_when_disabled(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """Config.enable_verification=False must skip verification entirely."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+
+        from scanner.config import Config
+        from scanner.runner.orchestrator import ScanOrchestrator
+
+        config = Config()
+        config.enable_verification = False
+        orch = ScanOrchestrator(config, sandbox=mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        mock_verifier_cls.return_value.verify.assert_not_called()
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_does_not_set_category_for_partial(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """PARTIAL results must not have failure_category assigned."""
+        from scanner.script_detector import ScriptOutcome
+        from scanner.verifier import VerifyOutcome
+
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+
+        mock_verifier_cls.return_value.verify.return_value = VerifyOutcome(
+            passed=False, summary="Lambda failed", details=["Lambda fn: FAILED"]
+        )
+        mock_detector_cls.return_value.detect.return_value = []
+        mock_detector_cls.return_value.run.return_value = ScriptOutcome(
+            passed=True, summary="No test scripts found"
+        )
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        result = report.results[0]
+        assert result.status == DeployStatus.PARTIAL
+        assert result.failure_category is None
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_partial_status_stored_in_results(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """PARTIAL status must be stored in self._results (not just local variable)."""
+        from scanner.script_detector import ScriptOutcome
+        from scanner.verifier import VerifyOutcome
+
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+
+        mock_verifier_cls.return_value.verify.return_value = VerifyOutcome(
+            passed=False, summary="Lambda failed", details=["Lambda fn: FAILED"]
+        )
+        mock_detector_cls.return_value.detect.return_value = []
+        mock_detector_cls.return_value.run.return_value = ScriptOutcome(
+            passed=True, summary="No test scripts found"
+        )
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        # Verify the result in the report (stored reference) has PARTIAL
+        assert report.results[0].status == DeployStatus.PARTIAL
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_sets_skipped_when_awslocal_unavailable(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """When awslocal is not available, verification_status must be SKIPPED."""
+        from scanner.script_detector import ScriptOutcome
+        from scanner.verifier import VerifyOutcome
+
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+
+        # ResourceVerifier returns the SKIPPED outcome (awslocal not found)
+        mock_verifier_cls.return_value.verify.return_value = VerifyOutcome(
+            passed=True,
+            summary="Verification SKIPPED — awslocal not available",
+            details=[],
+        )
+        mock_detector_cls.return_value.detect.return_value = []
+        mock_detector_cls.return_value.run.return_value = ScriptOutcome(
+            passed=True, summary="No test scripts found"
+        )
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        result = report.results[0]
+        assert result.status == DeployStatus.SUCCESS
+        assert result.verification_status == "SKIPPED"
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_calls_cleanup_after_verification_crash(
+        self, mock_get_deployer, mock_sleep, _, mock_detector_cls, mock_verifier_cls
+    ):
+        """deployer.cleanup must be called even when verification crashes."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result(status=DeployStatus.SUCCESS)
+        mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls.return_value.verify.side_effect = RuntimeError("awslocal crashed")
 
         orch, _ = _make_orchestrator(mock_sandbox)
         orch.run(samples, ls_manager)

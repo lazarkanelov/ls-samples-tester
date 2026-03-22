@@ -19,8 +19,8 @@ class TestCdkDeployer:
     @patch("scanner.deployer.cdk.subprocess.run")
     def test_bootstrap_runs_cdklocal_bootstrap(self, mock_run, tmp_path):
         mock_run.return_value = self._mock_run(0, "CDKToolkit bootstrap complete")
-        result = self.deployer.bootstrap(timeout=60)
-        assert result is True
+        success, _ = self.deployer.bootstrap(timeout=60)
+        assert success is True
         mock_run.assert_called_once()
         cmd = mock_run.call_args[0][0]
         assert "cdklocal" in cmd
@@ -29,8 +29,8 @@ class TestCdkDeployer:
     @patch("scanner.deployer.cdk.subprocess.run")
     def test_bootstrap_returns_false_on_failure(self, mock_run):
         mock_run.return_value = self._mock_run(1, "", "Error")
-        result = self.deployer.bootstrap(timeout=60)
-        assert result is False
+        success, _ = self.deployer.bootstrap(timeout=60)
+        assert success is False
 
     @patch("scanner.deployer.cdk.subprocess.run")
     def test_prepare_runs_npm_install_for_ts_project(self, mock_run, tmp_path):
@@ -97,3 +97,37 @@ class TestCdkDeployer:
         from scanner.models import DeployStatus
         result = self.deployer.deploy(tmp_path, timeout=1)
         assert result.status == DeployStatus.TIMEOUT
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_bootstrap_passes_required_env_vars(self, mock_run):
+        """cdklocal bootstrap must receive all required AWS and CDK env vars."""
+        mock_run.return_value = self._mock_run(0)
+        self.deployer.bootstrap(timeout=60)
+        call_kwargs = mock_run.call_args[1]
+        env = call_kwargs.get("env", {})
+        assert env.get("AWS_DEFAULT_REGION") == "us-east-1"
+        assert env.get("AWS_ACCESS_KEY_ID") == "test"
+        assert env.get("AWS_SECRET_ACCESS_KEY") == "test"
+        assert env.get("CDK_DEFAULT_ACCOUNT") == "000000000000"
+        assert env.get("CDK_DEFAULT_REGION") == "us-east-1"
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_deploy_passes_required_env_vars(self, mock_run, tmp_path):
+        """cdklocal deploy must receive all required AWS and CDK env vars."""
+        mock_run.return_value = self._mock_run(0)
+        self.deployer.deploy(tmp_path, timeout=60)
+        call_kwargs = mock_run.call_args[1]
+        env = call_kwargs.get("env", {})
+        assert env.get("AWS_DEFAULT_REGION") == "us-east-1"
+        assert env.get("CDK_DEFAULT_ACCOUNT") == "000000000000"
+        assert env.get("CDK_DEFAULT_REGION") == "us-east-1"
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_bootstrap_captures_error_output(self, mock_run):
+        """Bootstrap failure error output must be returned as the second element of the tuple."""
+        mock_run.return_value = self._mock_run(
+            1, "", "Unable to resolve account: CDK_DEFAULT_ACCOUNT not set"
+        )
+        success, error = self.deployer.bootstrap(timeout=60)
+        assert success is False
+        assert "Unable to resolve account" in error

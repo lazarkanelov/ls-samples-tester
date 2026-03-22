@@ -41,6 +41,7 @@ def _build_entry(report: ScanReport) -> dict[str, Any]:
         "skipped": report.skipped_count,
         "by_iac_type": by_iac,
         "by_cloud": by_cloud,
+        "by_failure_category": report.category_counts,
     }
 
 

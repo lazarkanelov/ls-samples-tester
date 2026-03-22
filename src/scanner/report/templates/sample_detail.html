@@ -17,6 +17,9 @@
     .badge-timeout { background: #e65100; }
     .badge-unsupported { background: #757575; }
     .badge-skipped { background: #9e9e9e; }
+    .badge-partial { background: #f57c00; }
+    .badge-passed { background: #2e7d32; }
+    .badge-failed { background: #c62828; }
     h2 { margin-top: 1.5em; margin-bottom: 0.4em; font-size: 1.1em; color: #555; }
     pre {
       background: #f5f5f5;
@@ -64,6 +67,16 @@
 <pre>{{ result.stderr }}</pre>
 {% else %}
 <p class="empty-log">(no output)</p>
+{% endif %}
+
+{% if result.verification_status %}
+<h2>Verification</h2>
+<table>
+  <tr><th>Verification Status</th><td><span class="badge badge-{{ result.verification_status | lower }}">{{ result.verification_status }}</span></td></tr>
+</table>
+{% if result.verification_details %}
+<pre>{{ result.verification_details }}</pre>
+{% endif %}
 {% endif %}
 
 </body>

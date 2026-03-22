@@ -29,9 +29,18 @@
     <strong style="color:#2e7d32">{{ latest.success }} passed</strong> &nbsp;/&nbsp;
     <strong style="color:#c62828">{{ latest.failure }} failed</strong> &nbsp;/&nbsp;
     {{ latest.timeout }} timeout &nbsp;/&nbsp;
-    {{ latest.unsupported }} unsupported &nbsp;&mdash;&nbsp;
+    {{ latest.unsupported }} unsupported &nbsp;/&nbsp;
+    {{ latest.skipped }} skipped &nbsp;&mdash;&nbsp;
     <strong>{{ latest.total }} total</strong>
   </p>
+  {% if latest.by_failure_category %}
+  <h3 style="margin: 0.8em 0 0.3em; font-size: 1em;">Failure Breakdown</h3>
+  <ul style="margin: 0; padding-left: 1.5em;">
+    {% for category, count in latest.by_failure_category.items() %}
+    <li><strong>{{ category }}</strong>: {{ count }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </div>
 {% endif %}
 

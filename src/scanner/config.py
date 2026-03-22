@@ -62,6 +62,10 @@ class Config:
     overall_scan_timeout: int = 18000  # 5 hours
     localstack_ready_timeout: int = 120
     localstack_reset_timeout: int = 10
+    verification_timeout: int = 120
+
+    # Verification
+    enable_verification: bool = True
 
     # Data
     data_retention_weeks: int = 12

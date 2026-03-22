@@ -25,10 +25,17 @@ def _stack_name(sample_dir: Path) -> str:
 
 
 def _find_template(sample_dir: Path) -> Path | None:
+    # Check root directory first
     for name in _TEMPLATE_NAMES:
         p = sample_dir / name
         if p.exists():
             return p
+    # Search one level deep in subdirectories (alphabetical for determinism)
+    for subdir in sorted(p for p in sample_dir.iterdir() if p.is_dir()):
+        for name in _TEMPLATE_NAMES:
+            p = subdir / name
+            if p.exists():
+                return p
     return None
 
 

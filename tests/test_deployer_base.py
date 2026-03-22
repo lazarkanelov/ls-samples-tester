@@ -76,7 +76,9 @@ class TestBaseDeployer:
             def cleanup(self, sample_dir):
                 pass
         d = ConcreteDeployer()
-        assert d.bootstrap(timeout=30) is True
+        success, error = d.bootstrap(timeout=30)
+        assert success is True
+        assert error == ""
 
     def test_base_detect_services_returns_list(self):
         from scanner.deployer.base import Deployer

@@ -9,11 +9,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from scanner.classifier import FailureClassifier
 from scanner.config import Config, IaCType
 from scanner.deployer import get_deployer
-from scanner.models import DeployResult, DeployStatus, Sample, ScanReport
+from scanner.models import DeployResult, DeployStatus, FailureCategory, Sample, ScanReport
 from scanner.runner.localstack import LocalStackManager
 from scanner.runner.sandbox import Sandbox
+from scanner.script_detector import ScriptDetector
+from scanner.verifier import ResourceVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +55,61 @@ class ScanOrchestrator:
         self._sandbox = sandbox if sandbox is not None else Sandbox()
         self._stop = False
         self._results: list[DeployResult] = []
+        self._classifier = FailureClassifier()
+
+    def _classify_result(self, result: DeployResult) -> None:
+        """Classify a failed result in-place; never raises."""
+        if (
+            result.status in (DeployStatus.SUCCESS, DeployStatus.PARTIAL)
+            or result.failure_category is not None
+        ):
+            return
+        try:
+            category = self._classifier.classify(result, self._config.localstack_endpoint)
+            if category is not None:
+                result.failure_category = category
+        except Exception as exc:
+            logger.debug("Classification failed for %s: %s", result.sample_name, exc)
+
+    def _verify_sample(self, sample_dir: Path, result: DeployResult) -> None:
+        """Run resource verification and script detection; mutates result in-place; never raises."""
+        try:
+            verifier = ResourceVerifier()
+            verify_outcome = verifier.verify(
+                self._config.localstack_endpoint,
+                timeout=self._config.verification_timeout,
+            )
+
+            detector = ScriptDetector()
+            scripts = detector.detect(sample_dir)
+            script_outcome = detector.run(
+                sample_dir, scripts, timeout=self._config.verification_timeout
+            )
+
+            any_failed = (not verify_outcome.passed) or (scripts and not script_outcome.passed)
+            no_resources = (
+                "No verifiable resources" in verify_outcome.summary
+                or "SKIPPED" in verify_outcome.summary
+            )
+            no_scripts = not scripts
+
+            details_parts = verify_outcome.details[:]
+            if scripts:
+                details_parts.append(script_outcome.summary)
+                if script_outcome.details:
+                    details_parts.extend(script_outcome.details)
+
+            result.verification_details = "; ".join(details_parts) if details_parts else None
+
+            if any_failed:
+                result.verification_status = "FAILED"
+                result.status = DeployStatus.PARTIAL
+            elif no_resources and no_scripts:
+                result.verification_status = "SKIPPED"
+            else:
+                result.verification_status = "PASSED"
+        except Exception as exc:
+            logger.warning("Verification failed for %s: %s", result.sample_name, exc)
 
     def _handle_signal(self, *_: Any) -> None:
         logger.warning("Signal received — stopping after current sample")
@@ -97,23 +155,25 @@ class ScanOrchestrator:
             # CDK bootstrap after state reset (before cloning)
             if sample.iac_type == IaCType.CDK:
                 cdk_deployer = get_deployer(IaCType.CDK)
-                if not cdk_deployer.bootstrap(timeout=120):
+                bootstrap_ok, bootstrap_error = cdk_deployer.bootstrap(timeout=120)
+                if not bootstrap_ok:
                     logger.warning(
-                        "CDK bootstrap failed for %s — skipping", sample.name
+                        "CDK bootstrap failed for %s: %s", sample.name, bootstrap_error
                     )
                     self._results.append(
                         DeployResult(
                             sample_name=sample.name,
                             org=sample.org,
-                            status=DeployStatus.SKIPPED,
+                            status=DeployStatus.FAILURE,
                             duration=0.0,
                             stdout="",
                             stderr="",
-                            error_message="CDK bootstrap failed",
+                            error_message=bootstrap_error or "CDK bootstrap failed",
                             services_used=[],
                             deployer_command="cdklocal bootstrap",
                             iac_type=sample.iac_type,
                             cloud_provider=sample.cloud_provider,
+                            failure_category=FailureCategory.DEPLOYER_ERROR,
                         )
                     )
                     continue
@@ -147,6 +207,9 @@ class ScanOrchestrator:
                     result.org = sample.org
                     result.sample_name = sample.name
 
+                self._classify_result(result)
+                if result.status == DeployStatus.SUCCESS and self._config.enable_verification:
+                    self._verify_sample(sample_dir, result)
                 self._results.append(result)
 
                 try:
@@ -156,21 +219,21 @@ class ScanOrchestrator:
 
             except Exception as exc:
                 logger.error("Unexpected error for %s: %s", sample.name, exc)
-                self._results.append(
-                    DeployResult(
-                        sample_name=sample.name,
-                        org=sample.org,
-                        status=DeployStatus.FAILURE,
-                        duration=0.0,
-                        stdout="",
-                        stderr="",
-                        error_message=str(exc),
-                        services_used=[],
-                        deployer_command="",
-                        iac_type=sample.iac_type,
-                        cloud_provider=sample.cloud_provider,
-                    )
+                exc_result = DeployResult(
+                    sample_name=sample.name,
+                    org=sample.org,
+                    status=DeployStatus.FAILURE,
+                    duration=0.0,
+                    stdout="",
+                    stderr="",
+                    error_message=str(exc),
+                    services_used=[],
+                    deployer_command="",
+                    iac_type=sample.iac_type,
+                    cloud_provider=sample.cloud_provider,
                 )
+                self._classify_result(exc_result)
+                self._results.append(exc_result)
             finally:
                 if sample_dir is not None:
                     self._sandbox.cleanup(sample_dir)

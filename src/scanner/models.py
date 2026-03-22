@@ -16,6 +16,15 @@ class DeployStatus(str, Enum):
     TIMEOUT = "TIMEOUT"
     SKIPPED = "SKIPPED"
     UNSUPPORTED = "UNSUPPORTED"
+    PARTIAL = "PARTIAL"
+
+
+class FailureCategory(str, Enum):
+    LOCALSTACK_BUG = "LOCALSTACK_BUG"
+    DEPLOYER_ERROR = "DEPLOYER_ERROR"
+    SAMPLE_ERROR = "SAMPLE_ERROR"
+    TIMEOUT = "TIMEOUT"
+    NOT_CLASSIFIED = "NOT_CLASSIFIED"
 
 
 _MAX_LOG_BYTES = 10 * 1024  # 10 KB per stream
@@ -92,6 +101,9 @@ class DeployResult:
     deployer_command: str
     iac_type: IaCType = IaCType.UNKNOWN
     cloud_provider: CloudProvider = CloudProvider.AWS
+    failure_category: FailureCategory | None = None
+    verification_status: str | None = None
+    verification_details: str | None = None
 
     def __post_init__(self) -> None:
         self.stdout = _truncate_log(self.stdout)
@@ -110,10 +122,15 @@ class DeployResult:
             "deployer_command": self.deployer_command,
             "iac_type": self.iac_type.value,
             "cloud_provider": self.cloud_provider.value,
+            "failure_category": self.failure_category.value if self.failure_category else None,
+            "verification_status": self.verification_status,
+            "verification_details": self.verification_details,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DeployResult:
+        raw_category = data.get("failure_category")
+        failure_category = FailureCategory(raw_category) if raw_category else None
         return cls(
             sample_name=data["sample_name"],
             org=data["org"],
@@ -126,6 +143,9 @@ class DeployResult:
             deployer_command=data.get("deployer_command", ""),
             iac_type=IaCType(data.get("iac_type", "UNKNOWN")),
             cloud_provider=CloudProvider(data.get("cloud_provider", "AWS")),
+            failure_category=failure_category,
+            verification_status=data.get("verification_status"),
+            verification_details=data.get("verification_details"),
         )
 
 
@@ -158,6 +178,20 @@ class ScanReport:
     def skipped_count(self) -> int:
         return sum(1 for r in self.results if r.status == DeployStatus.SKIPPED)
 
+    @property
+    def partial_count(self) -> int:
+        return sum(1 for r in self.results if r.status == DeployStatus.PARTIAL)
+
+    @property
+    def category_counts(self) -> dict[str, int]:
+        """Returns failure category counts (excludes None categories)."""
+        counts: dict[str, int] = {}
+        for r in self.results:
+            if r.failure_category is not None:
+                key = r.failure_category.value
+                counts[key] = counts.get(key, 0) + 1
+        return counts
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "scan_date": self.scan_date,
@@ -170,6 +204,7 @@ class ScanReport:
                 "timeout": self.timeout_count,
                 "unsupported": self.unsupported_count,
                 "skipped": self.skipped_count,
+                "partial": self.partial_count,
             },
         }
 

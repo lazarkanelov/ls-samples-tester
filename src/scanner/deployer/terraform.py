@@ -24,7 +24,8 @@ class TerraformDeployer(Deployer):
             timeout=180,
         )
         if result.returncode != 0:
-            logger.warning("tflocal init failed: %s", result.stderr)
+            error = result.stderr.strip() or result.stdout.strip() or "tflocal init failed"
+            logger.warning("tflocal init failed: %s", error)
             return False
         return True
 
@@ -59,7 +60,7 @@ class TerraformDeployer(Deployer):
                 duration=duration,
                 stdout=result.stdout,
                 stderr=result.stderr,
-                error_message=result.stderr or "Non-zero exit code",
+                error_message=result.stderr.strip() or result.stdout.strip() or "Non-zero exit code",
                 services_used=[],
                 deployer_command="tflocal apply",
             )

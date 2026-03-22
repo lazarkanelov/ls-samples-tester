@@ -18,6 +18,15 @@
     .badge-timeout { background: #e65100; }
     .badge-unsupported { background: #757575; }
     .badge-skipped { background: #9e9e9e; }
+    .badge-localstack-bug { background: #6a1b9a; }
+    .badge-deployer-error { background: #e65100; }
+    .badge-sample-error { background: #f9a825; color: #333; }
+    .badge-not-classified { background: #9e9e9e; }
+    .badge-partial { background: #f57c00; }
+    .badge-passed { background: #2e7d32; }
+    .badge-failed { background: #c62828; }
+    .breakdown { margin-top: 2em; }
+    .breakdown table { width: auto; min-width: 300px; }
     table { border-collapse: collapse; width: 100%; margin-top: 1em; }
     th, td { border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; vertical-align: top; }
     th { background: #f5f5f5; font-weight: 600; }
@@ -51,6 +60,10 @@
     <div class="stat-value" style="color:#9e9e9e">{{ report.skipped_count }}</div>
     <div class="stat-label">Skipped</div>
   </div>
+  <div class="stat">
+    <div class="stat-value" style="color:#f57c00">{{ report.partial_count }}</div>
+    <div class="stat-label">Partial</div>
+  </div>
 </div>
 
 <input id="filter" type="text" placeholder="Filter samples…" oninput="filterTable()">
@@ -64,6 +77,8 @@
       <th>Cloud</th>
       <th>Status</th>
       <th>Duration (s)</th>
+      <th>Failure Category</th>
+      <th>Verification</th>
       <th>Error Summary</th>
       <th>Details</th>
     </tr>
@@ -77,12 +92,33 @@
       <td>{{ result.cloud_provider.value }}</td>
       <td><span class="badge badge-{{ result.status.value | lower }}">{{ result.status.value }}</span></td>
       <td>{{ result.duration | round(1) }}</td>
+      <td>{% if result.failure_category %}<span class="badge badge-{{ result.failure_category.value | lower | replace('_', '-') }}">{{ result.failure_category.value }}</span>{% endif %}</td>
+      <td>{% if result.verification_status %}<span class="badge badge-{{ result.verification_status | lower }}">{{ result.verification_status }}</span>{% endif %}</td>
       <td>{{ (result.error_message or "") | truncate(80) }}</td>
       <td><a href="{{ result.sample_name | sanitize_filename }}-detail.html">View</a></td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
+
+{% if report.category_counts %}
+<div class="breakdown">
+  <h2>Failure Breakdown</h2>
+  <table>
+    <thead>
+      <tr><th>Category</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+    {% for category, count in report.category_counts.items() %}
+      <tr>
+        <td><span class="badge badge-{{ category | lower | replace('_', '-') }}">{{ category }}</span></td>
+        <td>{{ count }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 <script>
 function filterTable() {

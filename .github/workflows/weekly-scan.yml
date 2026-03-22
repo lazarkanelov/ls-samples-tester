@@ -81,7 +81,7 @@ jobs:
           pulumi version
 
       - name: Run full scan pipeline
-        run: uv run scanner run --max-repos-per-org 500 --external-localstack
+        run: uv run scanner run --max-repos-per-org 500 --limit 15 --external-localstack
 
       - name: Commit data changes
         run: |

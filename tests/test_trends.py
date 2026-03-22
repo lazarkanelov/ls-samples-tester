@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from scanner.config import CloudProvider, IaCType
-from scanner.models import DeployResult, DeployStatus, ScanReport
+from scanner.models import DeployResult, DeployStatus, FailureCategory, ScanReport
 
 
 def _make_report(date: str = "2026-03-16", successes: int = 3, failures: int = 1) -> ScanReport:
@@ -168,3 +168,37 @@ class TestIndexPageGeneration:
         tracker.generate_index(tmp_path)
         html = (tmp_path / "index.html").read_text()
         assert "2026-03-16" in html
+
+
+class TestTrendsByFailureCategory:
+    def test_update_stores_by_failure_category(self, tmp_path):
+        from scanner.report.trends import TrendTracker
+
+        report = _make_report(successes=2, failures=1)
+        report.results[-1].failure_category = FailureCategory.LOCALSTACK_BUG
+        tracker = TrendTracker(tmp_path / "trends.json")
+        tracker.update(report)
+        data = json.loads((tmp_path / "trends.json").read_text())
+        assert "by_failure_category" in data[0]
+        assert data[0]["by_failure_category"]["LOCALSTACK_BUG"] == 1
+
+    def test_update_by_failure_category_empty_when_no_failures(self, tmp_path):
+        from scanner.report.trends import TrendTracker
+
+        report = _make_report(successes=3, failures=0)
+        tracker = TrendTracker(tmp_path / "trends.json")
+        tracker.update(report)
+        data = json.loads((tmp_path / "trends.json").read_text())
+        assert data[0]["by_failure_category"] == {}
+
+    def test_index_shows_failure_breakdown(self, tmp_path):
+        from scanner.report.trends import TrendTracker
+
+        report = _make_report(successes=2, failures=1)
+        report.results[-1].failure_category = FailureCategory.LOCALSTACK_BUG
+        tracker = TrendTracker(tmp_path / "trends.json")
+        tracker.update(report)
+        tracker.generate_index(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "Failure Breakdown" in html
+        assert "LOCALSTACK_BUG" in html

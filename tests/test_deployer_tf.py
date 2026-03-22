@@ -63,6 +63,34 @@ class TestTerraformDeployer:
         assert result.status == DeployStatus.TIMEOUT
 
     @patch("scanner.deployer.terraform.subprocess.run")
+    def test_deploy_uses_stdout_when_stderr_empty(self, mock_run, tmp_path):
+        """Terraform writes errors to stdout — should use it when stderr is empty."""
+        from scanner.models import DeployStatus
+
+        mock_run.return_value = self._mock_run(
+            1, "Error: resource quota exceeded\nApply failed", ""
+        )
+        result = self.deployer.deploy(tmp_path, timeout=60)
+        assert result.status == DeployStatus.FAILURE
+        assert "resource quota exceeded" in result.error_message
+
+    @patch("scanner.deployer.terraform.subprocess.run")
+    def test_deploy_prefers_stderr_over_stdout_when_both_present(self, mock_run, tmp_path):
+        """When both stderr and stdout have content, use stderr."""
+        mock_run.return_value = self._mock_run(
+            1, "Some stdout content", "Error: actual error in stderr"
+        )
+        result = self.deployer.deploy(tmp_path, timeout=60)
+        assert "actual error in stderr" in result.error_message
+
+    @patch("scanner.deployer.terraform.subprocess.run")
+    def test_deploy_fallback_message_when_both_empty(self, mock_run, tmp_path):
+        """When both stderr and stdout are empty, use fallback message."""
+        mock_run.return_value = self._mock_run(1, "", "")
+        result = self.deployer.deploy(tmp_path, timeout=60)
+        assert result.error_message == "Non-zero exit code"
+
+    @patch("scanner.deployer.terraform.subprocess.run")
     def test_cleanup_runs_tflocal_destroy(self, mock_run, tmp_path):
         mock_run.return_value = self._mock_run(0)
         self.deployer.cleanup(tmp_path)

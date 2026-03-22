@@ -10,9 +10,9 @@ from scanner.models import DeployResult
 class Deployer(ABC):
     """Abstract base for IaC deployers."""
 
-    def bootstrap(self, timeout: int = 300) -> bool:
-        """Bootstrap deployer environment (e.g., CDK bootstrap). Returns True by default."""
-        return True
+    def bootstrap(self, timeout: int = 300) -> tuple[bool, str]:
+        """Bootstrap deployer environment (e.g., CDK bootstrap). Returns (True, "") by default."""
+        return True, ""
 
     def detect_services(self, sample_dir: Path) -> list[str]:
         """Detect AWS/Azure services used by the sample. Returns empty list by default."""
