@@ -3,7 +3,13 @@ name: Weekly LocalStack Compatibility Scan
 on:
   schedule:
     - cron: '0 6 * * 1'  # Monday 6 AM UTC
-  workflow_dispatch:       # Allow manual runs
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Max samples to scan (0 = unlimited)'
+        required: false
+        default: '0'
+        type: string
 
 permissions:
   contents: write
@@ -81,7 +87,12 @@ jobs:
           pulumi version
 
       - name: Run full scan pipeline
-        run: uv run scanner run --max-repos-per-org 500 --limit 15 --external-localstack
+        run: |
+          LIMIT_ARG=""
+          if [ "${{ github.event.inputs.limit }}" != "0" ] && [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          fi
+          uv run scanner run --max-repos-per-org 500 $LIMIT_ARG --external-localstack
 
       - name: Commit data changes
         run: |
