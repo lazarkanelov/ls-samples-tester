@@ -128,5 +128,29 @@
     1.0,
     1.0,
     1.0
+  ],
+  "aws-samples/eks-workshop-v2": [
+    4.83167852599945
+  ],
+  "aws-samples/terraform-eks-code": [
+    3.553676518999964
+  ],
+  "aws-samples/karpenter-blueprints": [
+    3.5543227580001258
+  ],
+  "aws-samples/terraform-aws-organization-policies": [
+    1.2267900479992022
+  ],
+  "aws-samples/aws-network-hub-for-terraform": [
+    1.298985759000061
+  ],
+  "aws-samples/aws-waf-firewall-manager-terraform": [
+    2.4085761309997906
+  ],
+  "aws-samples/amazon-eks-jenkins-terraform": [
+    3.4664435960003175
+  ],
+  "aws-samples/sagemaker-custom-project-templates": [
+    3.6305431640003007
   ]
 }

@@ -82,40 +82,32 @@
   },
   {
     "date": "2026-03-23",
-    "total": 1725,
-    "success": 269,
-    "failure": 516,
+    "total": 10,
+    "success": 4,
+    "failure": 5,
     "timeout": 0,
-    "unsupported": 378,
+    "unsupported": 0,
     "skipped": 0,
+    "partial": 1,
     "by_iac_type": {
       "TERRAFORM": {
-        "partial": 9,
-        "success": 269,
-        "failure": 76
-      },
-      "AZURE_BICEP": {
-        "unsupported": 378,
-        "failure": 4
-      },
-      "CDK": {
-        "failure": 436
+        "partial": 1,
+        "success": 4,
+        "failure": 5
       }
     },
     "by_cloud": {
       "AWS": {
-        "partial": 9,
-        "success": 269,
-        "failure": 512
-      },
-      "AZURE": {
-        "unsupported": 378,
-        "failure": 4
+        "partial": 1,
+        "success": 4,
+        "failure": 5
       }
     },
     "by_failure_category": {
-      "NOT_CLASSIFIED": 442,
-      "DEPLOYER_ERROR": 452
-    }
+      "MISSING_VARIABLE": 2,
+      "NOT_CLASSIFIED": 1,
+      "DEPLOYER_ERROR": 2
+    },
+    "regressions": []
   }
 ]
