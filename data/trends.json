@@ -79,5 +79,43 @@
       "NOT_CLASSIFIED": 4,
       "DEPLOYER_ERROR": 3
     }
+  },
+  {
+    "date": "2026-03-23",
+    "total": 1725,
+    "success": 269,
+    "failure": 516,
+    "timeout": 0,
+    "unsupported": 378,
+    "skipped": 0,
+    "by_iac_type": {
+      "TERRAFORM": {
+        "partial": 9,
+        "success": 269,
+        "failure": 76
+      },
+      "AZURE_BICEP": {
+        "unsupported": 378,
+        "failure": 4
+      },
+      "CDK": {
+        "failure": 436
+      }
+    },
+    "by_cloud": {
+      "AWS": {
+        "partial": 9,
+        "success": 269,
+        "failure": 512
+      },
+      "AZURE": {
+        "unsupported": 378,
+        "failure": 4
+      }
+    },
+    "by_failure_category": {
+      "NOT_CLASSIFIED": 442,
+      "DEPLOYER_ERROR": 452
+    }
   }
 ]
