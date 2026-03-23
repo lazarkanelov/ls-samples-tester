@@ -101,6 +101,41 @@
   </tbody>
 </table>
 
+{% if service_stats %}
+<div class="breakdown">
+  <h2>Service Coverage</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Total</th>
+        <th>Success</th>
+        <th>Failure</th>
+        <th>Partial</th>
+        {% for iac in service_iac_types %}<th>{{ iac }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+    {% for svc, stats in service_stats.items() %}
+      <tr>
+        <td><strong>{{ svc }}</strong></td>
+        <td>{{ stats.total }}</td>
+        <td style="color:#2e7d32">{{ stats.success }}</td>
+        <td style="color:#c62828">{{ stats.failure }}</td>
+        <td style="color:#f57c00">{{ stats.partial }}</td>
+        {% for iac in service_iac_types %}
+          {% set pct = service_heatmap.get(svc, {}).get(iac) %}
+          <td style="background:{% if pct is none %}#f5f5f5{% elif pct >= 70 %}#c8e6c9{% elif pct >= 40 %}#fff9c4{% else %}#ffcdd2{% endif %};text-align:center">
+            {% if pct is not none %}{{ pct }}%{% else %}-{% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if report.category_counts %}
 <div class="breakdown">
   <h2>Failure Breakdown</h2>

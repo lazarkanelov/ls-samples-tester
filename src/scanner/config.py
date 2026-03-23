@@ -64,6 +64,15 @@ class Config:
     localstack_reset_timeout: int = 10
     verification_timeout: int = 120
 
+    # Retry
+    max_retries: int = 2
+    retry_delay: int = 10
+
+    # Adaptive timeouts
+    per_sample_timeout_min: int = 120
+    per_sample_timeout_max: int = 1200
+    durations_path: str = "data/durations.json"
+
     # Verification
     enable_verification: bool = True
 

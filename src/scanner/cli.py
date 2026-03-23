@@ -112,9 +112,9 @@ def scan(ctx: click.Context, limit: int | None, external_localstack: bool, local
     report_out = Path(config.reports_dir) / scan_report.scan_date
     ReportGenerator(report_out).generate(scan_report)
 
-    # Update trends + regenerate index
+    # Update trends + regenerate index (pass results_dir for regression detection)
     trends = TrendTracker(Path(config.trends_path))
-    trends.update(scan_report)
+    trends.update(scan_report, results_dir=results_dir)
     trends.generate_index(Path(config.reports_dir))
 
     click.echo(
@@ -124,6 +124,9 @@ def scan(ctx: click.Context, limit: int | None, external_localstack: bool, local
         f"{scan_report.timeout_count} timed out, "
         f"{scan_report.unsupported_count} unsupported"
     )
+    if scan_report.category_counts:
+        top = sorted(scan_report.category_counts.items(), key=lambda x: -x[1])[:5]
+        click.echo("Failure categories: " + ", ".join(f"{cat}: {cnt}" for cat, cnt in top))
     click.echo(f"Results: {results_file}")
     click.echo(f"Report:  {report_out}/report.html")
 

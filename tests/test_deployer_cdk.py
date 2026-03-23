@@ -43,15 +43,6 @@ class TestCdkDeployer:
         assert "install" in cmd
 
     @patch("scanner.deployer.cdk.subprocess.run")
-    def test_prepare_runs_pip_install_for_python_project(self, mock_run, tmp_path):
-        (tmp_path / "requirements.txt").write_text("boto3\n")
-        mock_run.return_value = self._mock_run(0)
-        result = self.deployer.prepare(tmp_path)
-        assert result is True
-        cmd = mock_run.call_args[0][0]
-        assert "pip" in cmd
-
-    @patch("scanner.deployer.cdk.subprocess.run")
     def test_prepare_returns_true_when_no_deps_file(self, mock_run, tmp_path):
         result = self.deployer.prepare(tmp_path)
         assert result is True
@@ -131,3 +122,49 @@ class TestCdkDeployer:
         success, error = self.deployer.bootstrap(timeout=60)
         assert success is False
         assert "Unable to resolve account" in error
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_bootstrap_returns_true_when_legacy_exports_warning_and_stack_exists(self, mock_run):
+        """Non-zero exit with LEGACY EXPORTS warning + stack exists → True."""
+        # First call: cdklocal bootstrap exits non-zero with LEGACY EXPORTS
+        # Second call: awslocal cloudformation describe-stacks → success
+        mock_run.side_effect = [
+            self._mock_run(1, "", "LEGACY EXPORTS — CDKToolkit already exists"),
+            self._mock_run(0, '{"Stacks":[{"StackName":"CDKToolkit"}]}', ""),
+        ]
+        success, error = self.deployer.bootstrap(timeout=60)
+        assert success is True
+        assert error == ""
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_bootstrap_returns_false_when_legacy_exports_but_stack_not_found(self, mock_run):
+        """Non-zero exit with LEGACY EXPORTS but stack check fails → False."""
+        mock_run.side_effect = [
+            self._mock_run(1, "", "LEGACY EXPORTS — something went wrong"),
+            self._mock_run(1, "", "Stack does not exist"),
+        ]
+        success, error = self.deployer.bootstrap(timeout=60)
+        assert success is False
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_bootstrap_legacy_exports_case_insensitive(self, mock_run):
+        """LEGACY EXPORTS check must be case-insensitive."""
+        mock_run.side_effect = [
+            self._mock_run(1, "", "legacy exports already bootstrapped"),
+            self._mock_run(0, '{"Stacks":[]}', ""),
+        ]
+        success, _ = self.deployer.bootstrap(timeout=60)
+        assert success is True
+
+    @patch("scanner.deployer.cdk.subprocess.run")
+    def test_prepare_uses_uv_pip_install_system_for_python_project(self, mock_run, tmp_path):
+        """Python CDK projects must use 'uv pip install --system'."""
+        (tmp_path / "requirements.txt").write_text("aws-cdk-lib\n")
+        mock_run.return_value = self._mock_run(0)
+        result = self.deployer.prepare(tmp_path)
+        assert result is True
+        cmd = mock_run.call_args[0][0]
+        assert "uv" in cmd
+        assert "pip" in cmd
+        assert "--system" in cmd
+        assert "install" in cmd

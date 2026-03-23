@@ -234,3 +234,87 @@ class TestReportGenerator:
         detail_files = list(tmp_path.glob("*-detail.html"))
         detail_html = detail_files[0].read_text()
         assert "Verification" not in detail_html
+
+
+class TestServiceDashboard:
+    def test_service_coverage_shown_when_services_used(self, tmp_path):
+        """Section appears when at least one result has non-empty services_used."""
+        from scanner.report.generator import ReportGenerator
+
+        report = _make_report([_make_result()])  # has services_used=["s3", "lambda"]
+        ReportGenerator(tmp_path).generate(report)
+        html = (tmp_path / "report.html").read_text()
+        assert "Service Coverage" in html
+
+    def test_service_coverage_absent_when_no_services(self, tmp_path):
+        """Section absent when all results have empty services_used."""
+        from scanner.report.generator import ReportGenerator
+
+        result = _make_result()
+        result.services_used = []
+        report = _make_report([result])
+        ReportGenerator(tmp_path).generate(report)
+        html = (tmp_path / "report.html").read_text()
+        assert "Service Coverage" not in html
+
+    def test_service_coverage_lists_service_name(self, tmp_path):
+        """Service name from services_used appears in coverage table."""
+        from scanner.report.generator import ReportGenerator
+
+        result = _make_result()
+        result.services_used = ["Lambda"]
+        report = _make_report([result])
+        ReportGenerator(tmp_path).generate(report)
+        html = (tmp_path / "report.html").read_text()
+        assert "Lambda" in html
+
+    def test_compute_service_stats_success_count(self, tmp_path):
+        """_compute_service_stats tallies success correctly."""
+        from scanner.report.generator import _compute_service_stats
+
+        result = _make_result(DeployStatus.SUCCESS)
+        result.services_used = ["Lambda"]
+        report = _make_report([result])
+        stats = _compute_service_stats(report)
+        assert stats["Lambda"]["success"] == 1
+        assert stats["Lambda"]["total"] == 1
+
+    def test_compute_service_stats_counts_across_statuses(self, tmp_path):
+        """Stats count success and failure correctly across results."""
+        from scanner.report.generator import _compute_service_stats
+
+        r1 = _make_result(DeployStatus.SUCCESS)
+        r1.services_used = ["S3"]
+        r2 = _make_result(DeployStatus.FAILURE, name="r2")
+        r2.services_used = ["S3"]
+        stats = _compute_service_stats(_make_report([r1, r2]))
+        assert stats["S3"]["total"] == 2
+        assert stats["S3"]["success"] == 1
+        assert stats["S3"]["failure"] == 1
+
+    def test_compute_service_stats_sorted_by_total(self, tmp_path):
+        """Most-used services appear first in stats."""
+        from scanner.report.generator import _compute_service_stats
+
+        r1 = _make_result(DeployStatus.SUCCESS)
+        r1.services_used = ["Rare"]
+        r2 = _make_result(DeployStatus.SUCCESS, name="r2")
+        r2.services_used = ["Common", "Rare"]
+        r3 = _make_result(DeployStatus.SUCCESS, name="r3")
+        r3.services_used = ["Common"]
+        stats = _compute_service_stats(_make_report([r1, r2, r3]))
+        service_order = list(stats.keys())
+        assert service_order[0] == "Common"  # total=2, first
+        assert service_order[1] == "Rare"    # total=2, second (alphabetical tie)
+
+    def test_service_heatmap_shows_iac_type(self, tmp_path):
+        """IaC type column appears in the heatmap."""
+        from scanner.report.generator import ReportGenerator
+
+        result = _make_result()
+        result.services_used = ["Lambda"]
+        report = _make_report([result])
+        ReportGenerator(tmp_path).generate(report)
+        html = (tmp_path / "report.html").read_text()
+        # _make_result uses IaCType.CDK
+        assert "CDK" in html

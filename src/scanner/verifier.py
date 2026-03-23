@@ -70,10 +70,45 @@ class ResourceVerifier:
         if s3_found:
             any_found = True
 
+        sqs_details, sqs_failed, sqs_found = self._verify_sqs(timeout)
+        details.extend(sqs_details)
+        if sqs_failed:
+            any_failed = True
+        if sqs_found:
+            any_found = True
+
+        sns_details, sns_failed, sns_found = self._verify_sns(timeout)
+        details.extend(sns_details)
+        if sns_failed:
+            any_failed = True
+        if sns_found:
+            any_found = True
+
+        ddb_details, ddb_failed, ddb_found = self._verify_dynamodb(timeout)
+        details.extend(ddb_details)
+        if ddb_failed:
+            any_failed = True
+        if ddb_found:
+            any_found = True
+
+        sfn_details, sfn_failed, sfn_found = self._verify_stepfunctions(timeout)
+        details.extend(sfn_details)
+        if sfn_failed:
+            any_failed = True
+        if sfn_found:
+            any_found = True
+
+        eb_details, eb_failed, eb_found = self._verify_eventbridge(timeout)
+        details.extend(eb_details)
+        if eb_failed:
+            any_failed = True
+        if eb_found:
+            any_found = True
+
         if not any_found:
             return VerifyOutcome(
                 passed=True,
-                summary="No verifiable resources found (Lambda/API GW/S3)",
+                summary="No verifiable resources found (Lambda/API GW/S3/SQS/SNS/DynamoDB/StepFunctions/EventBridge)",
                 details=details,
             )
 
@@ -233,6 +268,88 @@ class ResourceVerifier:
                 any_failed = True
 
         return details, any_failed, any_found
+
+    def _verify_sqs(self, timeout: int) -> tuple[list[str], bool, bool]:
+        """List SQS queues. Returns (details, any_failed, any_found)."""
+        details: list[str] = []
+        try:
+            result = subprocess.run(
+                ["awslocal", "sqs", "list-queues", "--region", "us-east-1", "--output", "text"],
+                capture_output=True, text=True, env=_AWS_ENV, timeout=timeout,
+            )
+        except FileNotFoundError:
+            return details, False, False
+        if result.returncode != 0 or not result.stdout.strip():
+            return details, False, False
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        details.append(f"SQS: {len(lines)} queue(s) found")
+        return details, False, True
+
+    def _verify_sns(self, timeout: int) -> tuple[list[str], bool, bool]:
+        """List SNS topics. Returns (details, any_failed, any_found)."""
+        details: list[str] = []
+        try:
+            result = subprocess.run(
+                ["awslocal", "sns", "list-topics", "--region", "us-east-1", "--output", "text"],
+                capture_output=True, text=True, env=_AWS_ENV, timeout=timeout,
+            )
+        except FileNotFoundError:
+            return details, False, False
+        if result.returncode != 0 or not result.stdout.strip():
+            return details, False, False
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        details.append(f"SNS: {len(lines)} topic(s) found")
+        return details, False, True
+
+    def _verify_dynamodb(self, timeout: int) -> tuple[list[str], bool, bool]:
+        """List DynamoDB tables. Returns (details, any_failed, any_found)."""
+        details: list[str] = []
+        try:
+            result = subprocess.run(
+                ["awslocal", "dynamodb", "list-tables", "--region", "us-east-1", "--output", "text"],
+                capture_output=True, text=True, env=_AWS_ENV, timeout=timeout,
+            )
+        except FileNotFoundError:
+            return details, False, False
+        if result.returncode != 0 or not result.stdout.strip():
+            return details, False, False
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        details.append(f"DynamoDB: {len(lines)} table(s) found")
+        return details, False, True
+
+    def _verify_stepfunctions(self, timeout: int) -> tuple[list[str], bool, bool]:
+        """List Step Functions state machines. Returns (details, any_failed, any_found)."""
+        details: list[str] = []
+        try:
+            result = subprocess.run(
+                ["awslocal", "stepfunctions", "list-state-machines",
+                 "--region", "us-east-1", "--output", "text"],
+                capture_output=True, text=True, env=_AWS_ENV, timeout=timeout,
+            )
+        except FileNotFoundError:
+            return details, False, False
+        if result.returncode != 0 or not result.stdout.strip():
+            return details, False, False
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        details.append(f"StepFunctions: {len(lines)} state machine(s) found")
+        return details, False, True
+
+    def _verify_eventbridge(self, timeout: int) -> tuple[list[str], bool, bool]:
+        """List EventBridge rules. Returns (details, any_failed, any_found)."""
+        details: list[str] = []
+        try:
+            result = subprocess.run(
+                ["awslocal", "events", "list-rules",
+                 "--region", "us-east-1", "--output", "text"],
+                capture_output=True, text=True, env=_AWS_ENV, timeout=timeout,
+            )
+        except FileNotFoundError:
+            return details, False, False
+        if result.returncode != 0 or not result.stdout.strip():
+            return details, False, False
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        details.append(f"EventBridge: {len(lines)} rule(s) found")
+        return details, False, True
 
     def _verify_s3(self, timeout: int) -> tuple[list[str], bool]:
         """List S3 buckets. Returns (details, any_found)."""

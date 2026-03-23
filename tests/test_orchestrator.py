@@ -556,6 +556,285 @@ class TestScanOrchestrator:
 
         mock_deployer.cleanup.assert_called_once()
 
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_captures_localstack_logs_after_deploy(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
+        """After each deploy, orchestrator calls get_recent_logs() and stores the result."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        ls_manager.get_recent_logs.return_value = "INFO: LocalStack ready\n"
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result()
+        mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        ls_manager.get_recent_logs.assert_called_once()
+        assert report.results[0].localstack_logs == "INFO: LocalStack ready\n"
+
+    # -----------------------------------------------------------------------
+    # Retry logic tests
+    # -----------------------------------------------------------------------
+
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_transient_failure_is_retried(
+        self, mock_get_deployer, mock_sleep, _, mock_detector, mock_verifier
+    ):
+        """A deploy result with 'connection refused' in error_message triggers a retry."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+
+        transient = _make_result(status=DeployStatus.FAILURE)
+        transient.error_message = "dial tcp: connection refused to localstack:4566"
+        success = _make_result(status=DeployStatus.SUCCESS)
+        mock_deployer.deploy.side_effect = [transient, success]
+        mock_get_deployer.return_value = mock_deployer
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        config = Config()
+        config.max_retries = 1
+        config.retry_delay = 0
+        from scanner.runner.orchestrator import ScanOrchestrator
+        orch = ScanOrchestrator(config, sandbox=mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        assert mock_deployer.deploy.call_count == 2
+        assert report.results[0].status == DeployStatus.SUCCESS
+
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_non_transient_failure_is_not_retried(self, mock_get_deployer, mock_sleep, _):
+        """A deploy failure without transient signals is not retried."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        failure = _make_result(status=DeployStatus.FAILURE)
+        failure.error_message = "Error: No value for required variable: vpc_id"
+        mock_deployer.deploy.return_value = failure
+        mock_get_deployer.return_value = mock_deployer
+
+        config = Config()
+        config.max_retries = 2
+        config.retry_delay = 0
+        from scanner.runner.orchestrator import ScanOrchestrator
+        orch = ScanOrchestrator(config, sandbox=mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        assert mock_deployer.deploy.call_count == 1
+
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_retry_exhausted_returns_last_result(self, mock_get_deployer, mock_sleep, _):
+        """When all retry attempts fail, the last result is stored."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        transient = _make_result(status=DeployStatus.FAILURE)
+        transient.error_message = "connection refused"
+        mock_deployer.deploy.return_value = transient
+        mock_get_deployer.return_value = mock_deployer
+
+        config = Config()
+        config.max_retries = 2
+        config.retry_delay = 0
+        from scanner.runner.orchestrator import ScanOrchestrator
+        orch = ScanOrchestrator(config, sandbox=mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        assert mock_deployer.deploy.call_count == 3  # 1 initial + 2 retries
+        assert report.results[0].status == DeployStatus.FAILURE
+
+
+# ---------------------------------------------------------------------------
+# Task 9: Service extraction + duration tracker integration
+# ---------------------------------------------------------------------------
+
+
+class TestServiceExtractionIntegration:
+    @patch("scanner.runner.orchestrator.DurationTracker")
+    @patch("scanner.runner.orchestrator.ServiceExtractor")
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_extracts_services_and_sets_on_result(
+        self,
+        mock_get_deployer,
+        mock_sleep,
+        _,
+        mock_detector,
+        mock_verifier,
+        mock_extractor_cls,
+        mock_tracker_cls,
+    ):
+        """ServiceExtractor.extract() is called and result.services_used is populated."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        result = _make_result()
+        result.services_used = []
+        mock_deployer.deploy.return_value = result
+        mock_get_deployer.return_value = mock_deployer
+        mock_extractor_cls.return_value.extract.return_value = ["Lambda", "S3"]
+        mock_tracker_instance = MagicMock()
+        mock_tracker_instance.get_timeout.return_value = 600
+        mock_tracker_cls.load.return_value = mock_tracker_instance
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        report = orch.run(samples, ls_manager)
+
+        mock_extractor_cls.return_value.extract.assert_called_once()
+        assert report.results[0].services_used == ["Lambda", "S3"]
+
+    @patch("scanner.runner.orchestrator.DurationTracker")
+    @patch("scanner.runner.orchestrator.ServiceExtractor")
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_records_duration_after_deploy(
+        self,
+        mock_get_deployer,
+        mock_sleep,
+        _,
+        mock_detector,
+        mock_verifier,
+        mock_extractor_cls,
+        mock_tracker_cls,
+    ):
+        """DurationTracker.record() is called after each successful deploy."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result()
+        mock_get_deployer.return_value = mock_deployer
+        mock_extractor_cls.return_value.extract.return_value = []
+        mock_tracker_instance = MagicMock()
+        mock_tracker_instance.get_timeout.return_value = 600
+        mock_tracker_cls.load.return_value = mock_tracker_instance
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        mock_tracker_instance.record.assert_called_once()
+
+    @patch("scanner.runner.orchestrator.DurationTracker")
+    @patch("scanner.runner.orchestrator.ServiceExtractor")
+    @patch("scanner.runner.orchestrator.ResourceVerifier")
+    @patch("scanner.runner.orchestrator.ScriptDetector")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_saves_duration_tracker_at_end(
+        self,
+        mock_get_deployer,
+        mock_sleep,
+        _,
+        mock_detector,
+        mock_verifier,
+        mock_extractor_cls,
+        mock_tracker_cls,
+    ):
+        """DurationTracker.save() is called once at the end of run()."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result()
+        mock_get_deployer.return_value = mock_deployer
+        mock_extractor_cls.return_value.extract.return_value = []
+        mock_tracker_instance = MagicMock()
+        mock_tracker_instance.get_timeout.return_value = 600
+        mock_tracker_cls.load.return_value = mock_tracker_instance
+        mock_verifier_cls, mock_detector_cls = _make_verify_mocks()
+        mock_verifier.return_value = mock_verifier_cls.return_value
+        mock_detector.return_value = mock_detector_cls.return_value
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        mock_tracker_instance.save.assert_called_once()
+
+    @patch("scanner.runner.orchestrator.DurationTracker")
+    @patch("scanner.runner.orchestrator.ServiceExtractor")
+    @patch("scanner.runner.orchestrator._capture_tool_versions", return_value={})
+    @patch("scanner.runner.orchestrator.time.sleep")
+    @patch("scanner.runner.orchestrator.get_deployer")
+    def test_run_uses_adaptive_timeout_from_tracker(
+        self,
+        mock_get_deployer,
+        mock_sleep,
+        _,
+        mock_extractor_cls,
+        mock_tracker_cls,
+    ):
+        """Deployer.deploy() is called with the timeout returned by DurationTracker."""
+        samples = [_make_sample()]
+        ls_manager = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.clone_sample.return_value = Path("/tmp/test")
+        mock_deployer = MagicMock()
+        mock_deployer.prepare.return_value = True
+        mock_deployer.deploy.return_value = _make_result()
+        mock_get_deployer.return_value = mock_deployer
+        mock_extractor_cls.return_value.extract.return_value = []
+
+        mock_tracker_instance = MagicMock()
+        mock_tracker_instance.get_timeout.return_value = 999  # distinctive value
+        mock_tracker_cls.load.return_value = mock_tracker_instance
+
+        orch, _ = _make_orchestrator(mock_sandbox)
+        orch.run(samples, ls_manager)
+
+        _, kwargs = mock_deployer.deploy.call_args
+        assert kwargs.get("timeout") == 999
+
 
 # ---------------------------------------------------------------------------
 # Sandbox tests

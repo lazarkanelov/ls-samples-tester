@@ -34,6 +34,25 @@ class CdkDeployer(Deployer):
             env=_CDK_ENV,
         )
         if result.returncode != 0:
+            combined = (result.stderr + result.stdout).upper()
+            if "LEGACY EXPORTS" in combined:
+                # The warning fires when CDKToolkit already exists; confirm the stack is there.
+                check = subprocess.run(
+                    [
+                        "awslocal",
+                        "cloudformation",
+                        "describe-stacks",
+                        "--stack-name",
+                        "CDKToolkit",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env=_CDK_ENV,
+                )
+                if check.returncode == 0:
+                    logger.info("CDK bootstrap: LEGACY EXPORTS warning — CDKToolkit stack confirmed")
+                    return True, ""
             error = result.stderr.strip() or result.stdout.strip() or "CDK bootstrap failed"
             logger.warning("CDK bootstrap failed: %s", error)
             return False, error
@@ -50,8 +69,10 @@ class CdkDeployer(Deployer):
             )
             return result.returncode == 0
         if (sample_dir / "requirements.txt").exists():
+            # uv pip install --system installs into the active Python environment,
+            # matching bare-pip behaviour while respecting the project's uv mandate.
             result = subprocess.run(
-                ["pip", "install", "-r", "requirements.txt"],
+                ["uv", "pip", "install", "--system", "-r", "requirements.txt"],
                 capture_output=True,
                 text=True,
                 cwd=sample_dir,

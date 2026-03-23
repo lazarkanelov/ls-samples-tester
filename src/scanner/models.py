@@ -25,6 +25,11 @@ class FailureCategory(str, Enum):
     SAMPLE_ERROR = "SAMPLE_ERROR"
     TIMEOUT = "TIMEOUT"
     NOT_CLASSIFIED = "NOT_CLASSIFIED"
+    MISSING_VARIABLE = "MISSING_VARIABLE"
+    PROVIDER_ERROR = "PROVIDER_ERROR"
+    RESOURCE_NOT_SUPPORTED = "RESOURCE_NOT_SUPPORTED"
+    AUTH_ERROR = "AUTH_ERROR"
+    NETWORK_ERROR = "NETWORK_ERROR"
 
 
 _MAX_LOG_BYTES = 10 * 1024  # 10 KB per stream
@@ -104,6 +109,7 @@ class DeployResult:
     failure_category: FailureCategory | None = None
     verification_status: str | None = None
     verification_details: str | None = None
+    localstack_logs: str | None = None
 
     def __post_init__(self) -> None:
         self.stdout = _truncate_log(self.stdout)
@@ -125,6 +131,7 @@ class DeployResult:
             "failure_category": self.failure_category.value if self.failure_category else None,
             "verification_status": self.verification_status,
             "verification_details": self.verification_details,
+            "localstack_logs": self.localstack_logs,
         }
 
     @classmethod
@@ -146,6 +153,7 @@ class DeployResult:
             failure_category=failure_category,
             verification_status=data.get("verification_status"),
             verification_details=data.get("verification_details"),
+            localstack_logs=data.get("localstack_logs"),
         )
 
 

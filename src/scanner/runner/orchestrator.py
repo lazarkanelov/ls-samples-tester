@@ -12,10 +12,12 @@ from typing import Any
 from scanner.classifier import FailureClassifier
 from scanner.config import Config, IaCType
 from scanner.deployer import get_deployer
+from scanner.duration_tracker import DurationTracker
 from scanner.models import DeployResult, DeployStatus, FailureCategory, Sample, ScanReport
 from scanner.runner.localstack import LocalStackManager
 from scanner.runner.sandbox import Sandbox
 from scanner.script_detector import ScriptDetector
+from scanner.service_extractor import ServiceExtractor
 from scanner.verifier import ResourceVerifier
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,25 @@ def _capture_tool_versions() -> dict[str, str]:
     return {name: _capture_version(cmd) for name, cmd in _TOOL_CMDS.items()}
 
 
+_TRANSIENT_SIGNALS = (
+    "connection refused",
+    "connection error",
+    "connectionerror",
+    "rate limit",
+    "timed out",
+    "timeout",
+)
+
+
+def _is_transient_failure(result: DeployResult) -> bool:
+    if result.status == DeployStatus.SUCCESS:
+        return False
+    text = " ".join(
+        filter(None, [result.error_message, result.stderr])
+    ).lower()
+    return any(sig in text for sig in _TRANSIENT_SIGNALS)
+
+
 def _prune_old_results(results_dir: Path, keep: int) -> None:
     """Remove oldest result JSON files, keeping only `keep` most recent."""
     files = sorted(results_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
@@ -56,6 +77,8 @@ class ScanOrchestrator:
         self._stop = False
         self._results: list[DeployResult] = []
         self._classifier = FailureClassifier()
+        self._duration_tracker = DurationTracker.load(Path(config.durations_path))
+        self._service_extractor = ServiceExtractor()
 
     def _classify_result(self, result: DeployResult) -> None:
         """Classify a failed result in-place; never raises."""
@@ -149,6 +172,7 @@ class ScanOrchestrator:
             )
 
             # Reset LocalStack state before each sample
+            reset_time = time.time()
             ls_manager.reset()
             time.sleep(3)  # Allow services to stabilise after reset
 
@@ -179,9 +203,13 @@ class ScanOrchestrator:
                     continue
 
             sample_dir: Path | None = None
+            full_name = f"{sample.org}/{sample.name}"
             try:
                 sample_dir = self._sandbox.clone_sample(sample)
                 deployer = get_deployer(sample.iac_type)
+
+                # Extract AWS services from IaC files before deploying
+                services = self._service_extractor.extract(sample_dir, sample.iac_type)
 
                 if not deployer.prepare(sample_dir):
                     result = DeployResult(
@@ -192,24 +220,47 @@ class ScanOrchestrator:
                         stdout="",
                         stderr="",
                         error_message="prepare() failed — dependency installation error",
-                        services_used=[],
+                        services_used=services,
                         deployer_command="",
                         iac_type=sample.iac_type,
                         cloud_provider=sample.cloud_provider,
                     )
                 else:
-                    result = deployer.deploy(
-                        sample_dir,
-                        timeout=self._config.per_sample_timeout,
+                    timeout = self._duration_tracker.get_timeout(
+                        full_name,
+                        self._config.per_sample_timeout,
+                        self._config.per_sample_timeout_min,
+                        self._config.per_sample_timeout_max,
                     )
+                    result = deployer.deploy(sample_dir, timeout=timeout)
+                    for attempt in range(self._config.max_retries):
+                        if not _is_transient_failure(result):
+                            break
+                        budget_ok = (
+                            time.monotonic() + self._config.retry_delay + timeout < deadline
+                        )
+                        if not budget_ok:
+                            break
+                        logger.info(
+                            "Transient failure for %s, retrying (attempt %d/%d)...",
+                            sample.name, attempt + 1, self._config.max_retries,
+                        )
+                        ls_manager.reset()
+                        time.sleep(self._config.retry_delay)
+                        result = deployer.deploy(sample_dir, timeout=timeout)
                     result.iac_type = sample.iac_type
                     result.cloud_provider = sample.cloud_provider
                     result.org = sample.org
                     result.sample_name = sample.name
+                    # Use extractor services if deployer did not populate services_used
+                    if not result.services_used:
+                        result.services_used = services
 
                 self._classify_result(result)
                 if result.status == DeployStatus.SUCCESS and self._config.enable_verification:
                     self._verify_sample(sample_dir, result)
+                result.localstack_logs = ls_manager.get_recent_logs(since_reset=reset_time)
+                self._duration_tracker.record(full_name, result.duration)
                 self._results.append(result)
 
                 try:
@@ -237,6 +288,8 @@ class ScanOrchestrator:
             finally:
                 if sample_dir is not None:
                     self._sandbox.cleanup(sample_dir)
+
+        self._duration_tracker.save(Path(self._config.durations_path))
 
         return ScanReport(
             results=self._results,

@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from unittest.mock import MagicMock, mock_open, patch
-
-import pytest
 
 from scanner.verifier import ResourceVerifier, VerifyOutcome
 
@@ -70,6 +67,11 @@ class TestLambdaVerification:
             _make_proc(returncode=0),  # invoke
             _make_proc(stdout=""),  # api gw list
             _make_proc(stdout=""),  # s3 ls
+            _make_proc(stdout=""),  # sqs
+            _make_proc(stdout=""),  # sns
+            _make_proc(stdout=""),  # dynamodb
+            _make_proc(stdout=""),  # stepfunctions
+            _make_proc(stdout=""),  # eventbridge
         ]
         verifier = ResourceVerifier()
         outcome = verifier.verify("http://localhost:4566")
@@ -91,6 +93,11 @@ class TestLambdaVerification:
             _make_proc(returncode=0),  # invoke exits 0 but has FunctionError in output
             _make_proc(stdout=""),  # api gw
             _make_proc(stdout=""),  # s3
+            _make_proc(stdout=""),  # sqs
+            _make_proc(stdout=""),  # sns
+            _make_proc(stdout=""),  # dynamodb
+            _make_proc(stdout=""),  # stepfunctions
+            _make_proc(stdout=""),  # eventbridge
         ]
         verifier = ResourceVerifier()
         outcome = verifier.verify("http://localhost:4566")
@@ -113,6 +120,11 @@ class TestLambdaVerification:
             _make_proc(returncode=1, stderr="error"),  # invoke fn-a fails
             _make_proc(stdout=""),  # api gw
             _make_proc(stdout="2024-01-01 mybucket"),  # s3 ls
+            _make_proc(stdout=""),  # sqs
+            _make_proc(stdout=""),  # sns
+            _make_proc(stdout=""),  # dynamodb
+            _make_proc(stdout=""),  # stepfunctions
+            _make_proc(stdout=""),  # eventbridge
         ]
         verifier = ResourceVerifier()
         outcome = verifier.verify("http://localhost:4566")
@@ -142,6 +154,11 @@ class TestApiGatewayVerification:
             _make_proc(stdout="abc123"),  # get-rest-apis
             _make_proc(stdout=stage_response),  # get-stages
             _make_proc(stdout=""),  # s3
+            _make_proc(stdout=""),  # sqs
+            _make_proc(stdout=""),  # sns
+            _make_proc(stdout=""),  # dynamodb
+            _make_proc(stdout=""),  # stepfunctions
+            _make_proc(stdout=""),  # eventbridge
         ]
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -161,6 +178,11 @@ class TestS3Verification:
             _make_proc(stdout=""),  # lambda list
             _make_proc(stdout=""),  # api gw
             _make_proc(stdout="2024-01-01 my-bucket\n2024-01-01 other-bucket"),  # s3 ls
+            _make_proc(stdout=""),  # sqs
+            _make_proc(stdout=""),  # sns
+            _make_proc(stdout=""),  # dynamodb
+            _make_proc(stdout=""),  # stepfunctions
+            _make_proc(stdout=""),  # eventbridge
         ]
         verifier = ResourceVerifier()
         outcome = verifier.verify("http://localhost:4566")
@@ -177,6 +199,146 @@ class TestNoResourcesFound:
         outcome = verifier.verify("http://localhost:4566")
         assert outcome.passed is True
         assert "No verifiable resources" in outcome.summary
+
+
+class TestSQSVerification:
+    @patch("scanner.verifier.subprocess.run")
+    def test_sqs_command_is_called(self, mock_run):
+        """verify() calls awslocal sqs list-queues."""
+        mock_run.return_value = _make_proc(stdout="")
+        verifier = ResourceVerifier()
+        verifier.verify("http://localhost:4566")
+        calls = [str(c) for c in mock_run.call_args_list]
+        assert any("list-queues" in c for c in calls)
+
+    @patch("scanner.verifier.subprocess.run")
+    def test_sqs_queues_appear_in_details(self, mock_run):
+        """When SQS queues are present, they appear in verification details."""
+        mock_run.side_effect = [
+            _make_proc(stdout=""),   # lambda
+            _make_proc(stdout=""),   # apigw
+            _make_proc(stdout=""),   # s3
+            _make_proc(stdout="http://sqs.us-east-1.localhost.localstack.cloud/queue1\nhttp://sqs.us-east-1.localhost.localstack.cloud/queue2"),  # sqs
+            _make_proc(stdout=""),   # sns
+            _make_proc(stdout=""),   # dynamodb
+            _make_proc(stdout=""),   # stepfunctions
+            _make_proc(stdout=""),   # eventbridge
+        ]
+        verifier = ResourceVerifier()
+        outcome = verifier.verify("http://localhost:4566")
+        assert any("SQS" in d for d in outcome.details)
+
+
+class TestSNSVerification:
+    @patch("scanner.verifier.subprocess.run")
+    def test_sns_command_is_called(self, mock_run):
+        """verify() calls awslocal sns list-topics."""
+        mock_run.return_value = _make_proc(stdout="")
+        verifier = ResourceVerifier()
+        verifier.verify("http://localhost:4566")
+        calls = [str(c) for c in mock_run.call_args_list]
+        assert any("list-topics" in c for c in calls)
+
+    @patch("scanner.verifier.subprocess.run")
+    def test_sns_topics_appear_in_details(self, mock_run):
+        """When SNS topics are present, they appear in verification details."""
+        mock_run.side_effect = [
+            _make_proc(stdout=""),   # lambda
+            _make_proc(stdout=""),   # apigw
+            _make_proc(stdout=""),   # s3
+            _make_proc(stdout=""),   # sqs
+            _make_proc(stdout="arn:aws:sns:us-east-1:000000000000:my-topic"),  # sns
+            _make_proc(stdout=""),   # dynamodb
+            _make_proc(stdout=""),   # stepfunctions
+            _make_proc(stdout=""),   # eventbridge
+        ]
+        verifier = ResourceVerifier()
+        outcome = verifier.verify("http://localhost:4566")
+        assert any("SNS" in d for d in outcome.details)
+
+
+class TestDynamoDBVerification:
+    @patch("scanner.verifier.subprocess.run")
+    def test_dynamodb_command_is_called(self, mock_run):
+        """verify() calls awslocal dynamodb list-tables."""
+        mock_run.return_value = _make_proc(stdout="")
+        verifier = ResourceVerifier()
+        verifier.verify("http://localhost:4566")
+        calls = [str(c) for c in mock_run.call_args_list]
+        assert any("list-tables" in c for c in calls)
+
+    @patch("scanner.verifier.subprocess.run")
+    def test_dynamodb_tables_appear_in_details(self, mock_run):
+        """When DynamoDB tables are present, they appear in verification details."""
+        mock_run.side_effect = [
+            _make_proc(stdout=""),   # lambda
+            _make_proc(stdout=""),   # apigw
+            _make_proc(stdout=""),   # s3
+            _make_proc(stdout=""),   # sqs
+            _make_proc(stdout=""),   # sns
+            _make_proc(stdout="users\norders"),  # dynamodb
+            _make_proc(stdout=""),   # stepfunctions
+            _make_proc(stdout=""),   # eventbridge
+        ]
+        verifier = ResourceVerifier()
+        outcome = verifier.verify("http://localhost:4566")
+        assert any("DynamoDB" in d for d in outcome.details)
+
+
+class TestStepFunctionsVerification:
+    @patch("scanner.verifier.subprocess.run")
+    def test_stepfunctions_command_is_called(self, mock_run):
+        """verify() calls awslocal stepfunctions list-state-machines."""
+        mock_run.return_value = _make_proc(stdout="")
+        verifier = ResourceVerifier()
+        verifier.verify("http://localhost:4566")
+        calls = [str(c) for c in mock_run.call_args_list]
+        assert any("list-state-machines" in c for c in calls)
+
+    @patch("scanner.verifier.subprocess.run")
+    def test_stepfunctions_machines_appear_in_details(self, mock_run):
+        """When Step Functions state machines are present, they appear in details."""
+        mock_run.side_effect = [
+            _make_proc(stdout=""),   # lambda
+            _make_proc(stdout=""),   # apigw
+            _make_proc(stdout=""),   # s3
+            _make_proc(stdout=""),   # sqs
+            _make_proc(stdout=""),   # sns
+            _make_proc(stdout=""),   # dynamodb
+            _make_proc(stdout="arn:aws:states:us-east-1:000000000000:stateMachine:MyMachine"),  # stepfunctions
+            _make_proc(stdout=""),   # eventbridge
+        ]
+        verifier = ResourceVerifier()
+        outcome = verifier.verify("http://localhost:4566")
+        assert any("StepFunctions" in d for d in outcome.details)
+
+
+class TestEventBridgeVerification:
+    @patch("scanner.verifier.subprocess.run")
+    def test_eventbridge_command_is_called(self, mock_run):
+        """verify() calls awslocal events list-rules."""
+        mock_run.return_value = _make_proc(stdout="")
+        verifier = ResourceVerifier()
+        verifier.verify("http://localhost:4566")
+        calls = [str(c) for c in mock_run.call_args_list]
+        assert any("list-rules" in c for c in calls)
+
+    @patch("scanner.verifier.subprocess.run")
+    def test_eventbridge_rules_appear_in_details(self, mock_run):
+        """When EventBridge rules are present, they appear in details."""
+        mock_run.side_effect = [
+            _make_proc(stdout=""),   # lambda
+            _make_proc(stdout=""),   # apigw
+            _make_proc(stdout=""),   # s3
+            _make_proc(stdout=""),   # sqs
+            _make_proc(stdout=""),   # sns
+            _make_proc(stdout=""),   # dynamodb
+            _make_proc(stdout=""),   # stepfunctions
+            _make_proc(stdout="MyRule\nAnotherRule"),  # eventbridge
+        ]
+        verifier = ResourceVerifier()
+        outcome = verifier.verify("http://localhost:4566")
+        assert any("EventBridge" in d for d in outcome.details)
 
 
 class TestTempFileUsage:
@@ -211,6 +373,11 @@ class TestTempFileUsage:
             _make_proc(returncode=0),  # invoke fn-b
             _make_proc(stdout=""),  # api gw
             _make_proc(stdout=""),  # s3
+            _make_proc(stdout=""),  # sqs
+            _make_proc(stdout=""),  # sns
+            _make_proc(stdout=""),  # dynamodb
+            _make_proc(stdout=""),  # stepfunctions
+            _make_proc(stdout=""),  # eventbridge
         ]
         verifier = ResourceVerifier()
         verifier.verify("http://localhost:4566")

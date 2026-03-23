@@ -79,5 +79,12 @@
 {% endif %}
 {% endif %}
 
+{% if result.localstack_logs %}
+<details>
+  <summary style="cursor:pointer;font-weight:bold;margin-top:1.5em;font-size:1.1em;color:#555;">LocalStack Logs</summary>
+  <pre style="margin-top:0.5em;">{{ result.localstack_logs }}</pre>
+</details>
+{% endif %}
+
 </body>
 </html>

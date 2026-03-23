@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import time
 from typing import Any
 
@@ -12,6 +13,15 @@ import requests
 from scanner.config import Config
 
 logger = logging.getLogger(__name__)
+
+_LS_LOG_MAX_BYTES = 50 * 1024  # 50 KB
+
+
+def _truncate_logs(text: str) -> str:
+    encoded = text.encode("utf-8", errors="replace")
+    if len(encoded) <= _LS_LOG_MAX_BYTES:
+        return text
+    return encoded[:_LS_LOG_MAX_BYTES].decode("utf-8", errors="replace") + "\n... [truncated]"
 
 
 class LocalStackManager:
@@ -112,6 +122,46 @@ class LocalStackManager:
             return self._container.logs(tail=200).decode("utf-8", errors="replace")
         except Exception:
             return ""
+
+    def get_recent_logs(self, since_reset: float) -> str:
+        """Return LocalStack logs captured since *since_reset* (Unix timestamp).
+
+        Self-managed mode: reads from the Docker container API.
+        External mode: fetches /_localstack/diagnose via HTTP, falls back to
+        ``docker logs`` subprocess. Returns an empty string if all sources fail.
+        Truncates output to 50 KB.
+        """
+        raw = self._fetch_recent_logs(since_reset)
+        return _truncate_logs(raw)
+
+    def _fetch_recent_logs(self, since_reset: float) -> str:
+        if self._container is not None:
+            try:
+                return self._container.logs(since=since_reset).decode("utf-8", errors="replace")
+            except Exception as exc:
+                logger.debug("Container log fetch failed: %s", exc)
+                return ""
+        # External mode: HTTP first, subprocess fallback
+        try:
+            resp = requests.get(
+                f"{self._config.localstack_endpoint}/_localstack/diagnose",
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                return resp.text
+        except Exception as exc:
+            logger.debug("HTTP log fetch failed: %s", exc)
+        try:
+            result = subprocess.run(
+                ["docker", "logs", self._config.localstack_container_name],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            return result.stdout + result.stderr
+        except Exception as exc:
+            logger.debug("Subprocess log fetch failed: %s", exc)
+        return ""
 
     # ------------------------------------------------------------------
     # Context manager
