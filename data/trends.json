@@ -109,5 +109,37 @@
       "DEPLOYER_ERROR": 2
     },
     "regressions": []
+  },
+  {
+    "date": "2026-03-27",
+    "total": 200,
+    "success": 137,
+    "failure": 60,
+    "timeout": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "partial": 3,
+    "by_iac_type": {
+      "TERRAFORM": {
+        "success": 137,
+        "partial": 3,
+        "failure": 60
+      }
+    },
+    "by_cloud": {
+      "AWS": {
+        "success": 137,
+        "partial": 3,
+        "failure": 60
+      }
+    },
+    "by_failure_category": {
+      "MISSING_VARIABLE": 17,
+      "NOT_CLASSIFIED": 28,
+      "DEPLOYER_ERROR": 11,
+      "AUTH_ERROR": 3,
+      "SAMPLE_ERROR": 1
+    },
+    "regressions": []
   }
 ]

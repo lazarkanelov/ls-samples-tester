@@ -130,27 +130,607 @@
     1.0
   ],
   "aws-samples/eks-workshop-v2": [
-    4.83167852599945
+    4.83167852599945,
+    3.6392106210005295
   ],
   "aws-samples/terraform-eks-code": [
-    3.553676518999964
+    3.553676518999964,
+    3.55691572699925
   ],
   "aws-samples/karpenter-blueprints": [
     3.5543227580001258
   ],
   "aws-samples/terraform-aws-organization-policies": [
-    1.2267900479992022
+    1.2267900479992022,
+    1.3112987429994973
   ],
   "aws-samples/aws-network-hub-for-terraform": [
-    1.298985759000061
+    1.298985759000061,
+    1.3569542159993944
   ],
   "aws-samples/aws-waf-firewall-manager-terraform": [
-    2.4085761309997906
+    2.4085761309997906,
+    2.573429636999208
   ],
   "aws-samples/amazon-eks-jenkins-terraform": [
-    3.4664435960003175
+    3.4664435960003175,
+    3.5901727029995527
   ],
   "aws-samples/sagemaker-custom-project-templates": [
-    3.6305431640003007
+    3.6305431640003007,
+    3.522284170999228
+  ],
+  "aws-samples/serverless-patterns": [
+    4.9892562369996085
+  ],
+  "aws-samples/amazon-ecs-fullstack-app-terraform": [
+    3.582430318999286
+  ],
+  "aws-samples/aws-waf-automation-terraform-samples": [
+    2.649740455999563
+  ],
+  "aws-samples/aws-control-tower-controls-terraform": [
+    8.667872080000052
+  ],
+  "aws-samples/aws-security-services-with-terraform": [
+    0.0
+  ],
+  "aws-samples/deepseek-using-vllm-on-eks": [
+    5.1552828220001174
+  ],
+  "aws-samples/terraform-aws-identity-center": [
+    1.3265619989997504
+  ],
+  "aws-samples/semantic-search-aws-docs": [
+    3.565008255000066
+  ],
+  "aws-samples/psp-reusable-artifacts": [
+    3.7475556589997723
+  ],
+  "aws-samples/localstack-terraform-test": [
+    2.6767546709997987
+  ],
+  "aws-samples/sample-genai-on-eks-starter-kit": [
+    3.6278401879999365
+  ],
+  "aws-samples/aws-iam-root-user-activity-monitor": [
+    1.384860615999969
+  ],
+  "aws-samples/aws-stepfunctions-ecs-fargate-process": [
+    3.533098279999649
+  ],
+  "aws-samples/organizations-policy-pipeline": [
+    9.675579378000293
+  ],
+  "aws-samples/terraform-aws-multi-account-pipeline": [
+    1.4699088289999054
+  ],
+  "aws-samples/sample-ai-agent-accelerator": [
+    3.5419902869998623
+  ],
+  "aws-samples/safeguarding-payments-fraud-detection-ai-ml-and-data-insights": [
+    3.716008322999187
+  ],
+  "aws-samples/terraform-ec2-image-builder-container-hardening-pipeline": [
+    1.4448724809999476
+  ],
+  "aws-samples/cloudwatch-synthetics-canary-terraform": [
+    0.0
+  ],
+  "aws-samples/genai-bedrock-fsxontap": [
+    3.537669901999834
+  ],
+  "aws-samples/manage-terraform-statefiles-in-aws-pipeline": [
+    9.684973702000207
+  ],
+  "aws-samples/aws-cicd-patch-management-terraform": [
+    3.527365302999897
+  ],
+  "aws-samples/terraform-aws-pipeline": [
+    1.4517805109999244
+  ],
+  "aws-samples/ai-chat-accelerator": [
+    3.5603323100003763
+  ],
+  "aws-samples/euc-amazon-appstream2-terraform-automation": [
+    0.0
+  ],
+  "aws-samples/use-github-and-terraform-to-deploy-web-applications": [
+    3.5114881859999514
+  ],
+  "aws-samples/automated-role-entitlements-in-aws-iam-identity-center": [
+    1.4058829600007812
+  ],
+  "aws-samples/karpenter-terraform": [
+    3.6214435159999994
+  ],
+  "aws-samples/amazon-eks-self-managed-node-group": [
+    0.8461558159997367
+  ],
+  "aws-samples/data-lineage-for-data-lake-example": [
+    1.4977396399999634
+  ],
+  "aws-samples/sample-scribe-ai": [
+    3.5604978690007556
+  ],
+  "aws-samples/amazon-eks-bottlerocket-mngnodegrp-terraform": [
+    24.124570957000287
+  ],
+  "aws-samples/aws-network-firewall-strict-rule-ordering-terraform": [
+    2.6927030310007467
+  ],
+  "aws-samples/kinesis-auto-scaling": [
+    3.497854412000379
+  ],
+  "aws-samples/terraform-cni-custom-network-sample": [
+    3.8332711120001477
+  ],
+  "aws-samples/aws-database-acceleration-toolkit": [
+    3.5298253339997245
+  ],
+  "aws-samples/sagemaker-domain-vpconly-canvas-with-terraform": [
+    2.7613712720003605
+  ],
+  "aws-samples/Implementing-custom-domain-names-for-Amazon-API-Gateway-private-endpoints": [
+    3.516376897000555
+  ],
+  "aws-samples/traffic-segmentation-multi-aws-region-transit-gateway-cloud-wan": [
+    2.3339730520001467
+  ],
+  "aws-samples/aws-msk-cross-account-connectivity-sample": [
+    1.411529743999381
+  ],
+  "aws-samples/sample-eks-hybrid-nodes-raspberry-pi": [
+    3.623496100999546
+  ],
+  "aws-samples/amazon-ecr-dynamic-repository-creation": [
+    22.414073951999853
+  ],
+  "aws-samples/terraform-aws-identity-center-users-and-groups": [
+    8.360967380000147
+  ],
+  "aws-samples/intelligent-rag-bedrockagent-iac": [
+    5.9639994969993495
+  ],
+  "aws-samples/sagemaker-batch-inference-pipeline": [
+    1.5294949159997486
+  ],
+  "aws-samples/terraform-aws-codecommit-s3-backups": [
+    1.3517053189998478
+  ],
+  "aws-samples/deploy-self-hosted-github-runner-eks-using-terraform": [
+    0.0
+  ],
+  "aws-samples/amazon-redshift-sql-deploy-terraform": [
+    4.021624390000397
+  ],
+  "aws-samples/rds-proxy-iac-terraform": [
+    1.281670252999902
+  ],
+  "aws-samples/centralized-backup-with-aws-backup-and-terraform": [
+    4.6177472930003205
+  ],
+  "aws-samples/sample-ssm-multi-user-session-manager-terraform": [
+    1.371220605000417
+  ],
+  "aws-samples/sample-amazon-eks-q-business-integration": [
+    7.044251784000153
+  ],
+  "aws-samples/infra-ops-orchestrator": [
+    5.651172313000643
+  ],
+  "aws-samples/sample-awsconfig-bedrock-compliance-manager": [
+    5.807489327999974
+  ],
+  "aws-samples/aws-security-reference-architecture-examples": [
+    3.559788141000354
+  ],
+  "aws-samples/amazon-elasticache-samples": [
+    3.608207761999438
+  ],
+  "aws-samples/sample-serverless-mcp-servers": [
+    3.529826961001163
+  ],
+  "aws-samples/multi-region-resiliency-reference-implementation": [
+    3.7780643320002127
+  ],
+  "aws-samples/sample-agentic-platform": [
+    3.5137608050008566
+  ],
+  "aws-samples/aws-sam-terraform-examples": [
+    3.7653771360000974
+  ],
+  "aws-samples/financial-crimes-discovery-using-graph-database": [
+    3.514843695000309
+  ],
+  "aws-samples/aws-tf-nw-shared-svc": [
+    3.603018575999158
+  ],
+  "aws-samples/step-functions-workflows-collection": [
+    3.678390830000353
+  ],
+  "aws-samples/qnx-on-aws-workshop": [
+    3.553420283000378
+  ],
+  "aws-samples/aws-data-pipelines-for-azure-storage": [
+    3.520911198000249
+  ],
+  "aws-samples/amazon-connect-gitlab-cicd-terraform": [
+    3.5296232189994043
+  ],
+  "aws-samples/fleet-management-on-amazon-eks-workshop": [
+    3.5378338740010804
+  ],
+  "aws-samples/sample-private-link-dr-with-r53": [
+    3.6380634750003082
+  ],
+  "aws-samples/hub-and-spoke-with-shared-services-vpc-terraform": [
+    3.5866749609995168
+  ],
+  "aws-samples/aft-custom-sso-assignment": [
+    3.6204963449999923
+  ],
+  "aws-samples/linkerd-on-eks": [
+    3.864526786001079
+  ],
+  "aws-samples/amazon-codeguru-detectors": [
+    3.56476865500008
+  ],
+  "aws-samples/sample-a2a-gateway": [
+    3.5589610589995573
+  ],
+  "aws-samples/amazon-vpc-lattice-blueprints": [
+    3.6013021079997998
+  ],
+  "aws-samples/amazon-q-detectors": [
+    3.5237716720002936
+  ],
+  "aws-samples/cyrustc-sample": [
+    3.5995223429999896
+  ],
+  "aws-samples/sample-spot-instance-cross-region-orchestration": [
+    3.535487732000547
+  ],
+  "aws-samples/aws-hpc-recipes": [
+    4.029304724999747
+  ],
+  "aws-samples/sample-self-hosted-grafana-oss-on-amazon-ecs": [
+    3.55330648600102
+  ],
+  "aws-samples/configure-keycloak-on-eks-using-terraform": [
+    3.627351934001126
+  ],
+  "aws-samples/pega-on-eks-aurora-postgresql": [
+    1.812381767998886
+  ],
+  "aws-samples/aws-macie-customization-terraform-samples": [
+    3.5258732579986827
+  ],
+  "aws-samples/web-hosting-architecture-examples-for-china-region-terraform": [
+    3.6784785960007866
+  ],
+  "aws-samples/aws-proton-terraform-sample-templates": [
+    3.53098032699927
+  ],
+  "aws-samples/aws-eks-multitenancy-deployment": [
+    3.5353787539988843
+  ],
+  "aws-samples/aws-devops-pipeline-accelerator": [
+    3.546474065999064
+  ],
+  "aws-samples/sample-agentic-data-lineage": [
+    3.542726366000352
+  ],
+  "aws-samples/sample-nocode-generative-ai-data-analytics-solution-on-aws": [
+    3.5101391510015674
+  ],
+  "aws-samples/aws-codepipeline-terraform-cicd-samples": [
+    1.3580588129989337
+  ],
+  "aws-samples/aws-ingesting-click-logs-using-terraform": [
+    3.536281153001255
+  ],
+  "aws-samples/aws-sap-terraform": [
+    3.6172636080009397
+  ],
+  "aws-samples/aws-cloud-wan-blueprints": [
+    3.559694201001548
+  ],
+  "aws-samples/mlops-with-terraform-sagemaker-and-code-pipelines": [
+    3.647754334999263
+  ],
+  "aws-samples/sample-fraud-investigation-assistance-using-aws-bedrock-strandsagents-mcp": [
+    3.5535687189985765
+  ],
+  "aws-samples/packet-capture-using-vpc-traffic-mirroring-s3-mount": [
+    13.570497169999726
+  ],
+  "aws-samples/eks-blueprints-for-terraform-workshop": [
+    11.601464669998677
+  ],
+  "aws-samples/sample-agentic-chatbot-accelerator": [
+    3.6326611140011664
+  ],
+  "aws-samples/gen-ai-cve-patching": [
+    3.5592335290002666
+  ],
+  "aws-samples/aws-tf-kms": [
+    3.528079797999453
+  ],
+  "aws-samples/amazon-managed-service-for-apache-flink-lifecycle-management-terraform": [
+    3.5389163670006383
+  ],
+  "aws-samples/mlops-multi-account-terraform": [
+    3.506018648000463
+  ],
+  "aws-samples/sample-odb-launch-using-terraform": [
+    21.632620987000337
+  ],
+  "aws-samples/aws-generativeai-partner-samples": [
+    3.4782391549997556
+  ],
+  "aws-samples/building-serverless-applications-with-terraform": [
+    3.566116031999627
+  ],
+  "aws-samples/bedrock-appsync-streaming": [
+    3.5406369180000183
+  ],
+  "aws-samples/amazon-eks-machine-learning-with-terraform-and-kubeflow": [
+    3.5351753960003407
+  ],
+  "aws-samples/sample-serverless-observability-for-ai-coding-assistants": [
+    3.5541297210002085
+  ],
+  "aws-samples/sample-fraud-detection-and-prevention-fdp-agentic-platform": [
+    3.8037972069996613
+  ],
+  "aws-samples/aws-shield-advanced-one-click-deployment": [
+    3.721072012998775
+  ],
+  "aws-samples/ray-serve-whisper-streaming-on-eks": [
+    3.5256929179995495
+  ],
+  "aws-samples/sample-for-ai-generated-iac-code-according-to-scp": [
+    0.0
+  ],
+  "aws-samples/aws-stepfunctions-examples": [
+    3.5067000609997194
+  ],
+  "aws-samples/sample-migrate-from-apikeys-grafana": [
+    1.9718659150003077
+  ],
+  "aws-samples/sample-automate-aws-supply-chain-deployment": [
+    3.623067649999939
+  ],
+  "aws-samples/aws-cloudtrail-lake-github-audit-log": [
+    3.5487910860010743
+  ],
+  "aws-samples/build-enforce-network-security-multi-account-environments": [
+    3.7648946379995323
+  ],
+  "aws-samples/cloudwatch-obervability-access-manager-terraform": [
+    3.546388486000069
+  ],
+  "aws-samples/terraform-sample-workshop": [
+    3.544552818999364
+  ],
+  "aws-samples/sample-agentic-ai-platform-with-agentcore": [
+    3.580212445000143
+  ],
+  "aws-samples/sample-meeting-audio-summarizer-in-terraform": [
+    3.555925317999936
+  ],
+  "aws-samples/sample-eks-bg-upgrades": [
+    3.612726801999088
+  ],
+  "aws-samples/sample-aws-security-lake-integrations": [
+    3.536059591000594
+  ],
+  "aws-samples/sample-deep-research-bedrock-agentcore": [
+    3.563005296000483
+  ],
+  "aws-samples/aws-privatelink-interface-endpoint-monitoring": [
+    14.53329220500018
+  ],
+  "aws-samples/istio-on-eks": [
+    3.5066779169992515
+  ],
+  "aws-samples/aws-control-tower-terraform-modules": [
+    3.589950288000182
+  ],
+  "aws-samples/sample-ai-powered-sdlc-patterns-with-aws": [
+    3.611084813999696
+  ],
+  "aws-samples/aws-network-firewall-terraform": [
+    3.7564852529994823
+  ],
+  "aws-samples/systems-manager-continuous-deployment-automox": [
+    3.5972759159994894
+  ],
+  "aws-samples/sample-cap-quant": [
+    3.554657361999489
+  ],
+  "aws-samples/sample-automated-Employee-Record-validation-using-Amazon-Bedrock": [
+    3.505761087000792
+  ],
+  "aws-samples/amazon-mq-samples": [
+    3.521298014999047
+  ],
+  "aws-samples/amazon-eks-security-immersion-day": [
+    3.8905263190008554
+  ],
+  "aws-samples/sample-quicksuite-usage-dashboard": [
+    8.785730326999328
+  ],
+  "aws-samples/sample-tech-for-trading": [
+    3.549969293000686
+  ],
+  "aws-samples/fargate-serverless-platform-operator-kit": [
+    3.5678232230002322
+  ],
+  "aws-samples/sample-to-implement-Amazon-Bedrock-for-prescription-validation-using-DynamoDB": [
+    3.54632907100131
+  ],
+  "aws-samples/amazon-scalable-infra-discord-diffusion": [
+    0.9049980180006969
+  ],
+  "aws-samples/sample-genai-gherkin-testcase": [
+    3.593091460001233
+  ],
+  "aws-samples/sample-eks-genai-platform": [
+    3.5381374320004397
+  ],
+  "aws-samples/saas-analytics-infrastructure-on-aws": [
+    3.6040458460010996
+  ],
+  "aws-samples/aws-site-to-site-vpn-private-ip-vpn": [
+    3.7181792669998686
+  ],
+  "aws-samples/sagemaker-studio-admin-iac-templates": [
+    3.6315812720004033
+  ],
+  "aws-samples/api-gateway-vpc-link": [
+    3.5679311309995683
+  ],
+  "aws-samples/rosa-patterns": [
+    3.601710483999341
+  ],
+  "aws-samples/apigateway-deployment-lifecycle-management-terraform": [
+    21.108121404000485
+  ],
+  "aws-samples/bedrock-custom-model-knowledge-base-terraform": [
+    8.97753982300128
+  ],
+  "aws-samples/sample-devops-agent-eks-workshop": [
+    3.552139776000331
+  ],
+  "aws-samples/sample-devops-agent-ecs-workshop": [
+    3.529410277998977
+  ],
+  "aws-samples/aws-enterprise-mlops-framework": [
+    3.653500118000011
+  ],
+  "aws-samples/hub-and-spoke-with-traffic-segmentation": [
+    0.0
+  ],
+  "aws-samples/aws-cloudwan-workshop-code": [
+    3.5618776230003277
+  ],
+  "aws-samples/opensearch-in-vpc": [
+    3.690984255999865
+  ],
+  "aws-samples/sample-agentic-frameworks-on-aws": [
+    3.520844874999966
+  ],
+  "aws-samples/rds-kerberos-authentication-using-onprem-active-directory": [
+    7.758420711999861
+  ],
+  "aws-samples/appmod-blueprints": [
+    3.7497091189998173
+  ],
+  "aws-samples/otl-service-launcher": [
+    1.079041787999813
+  ],
+  "aws-samples/K8sResourceResizer": [
+    3.506624608000493
+  ],
+  "aws-samples/sample-ManagedAutoScaler": [
+    3.557344271999682
+  ],
+  "aws-samples/aft-account-customizations-examples": [
+    3.6019992840010673
+  ],
+  "aws-samples/integrate-httpapi-with-cloudfront-and-waf": [
+    64.27152827099962
+  ],
+  "aws-samples/sample-terraform-aws-permission-sets-pipeline": [
+    0.0
+  ],
+  "aws-samples/enable-lambda-snapstart-with-iac-samples": [
+    3.5511270690003585
+  ],
+  "aws-samples/amazon-managed-apache-flink-service-pyflink-starter-kit": [
+    3.5315673099994456
+  ],
+  "aws-samples/sample-mcp-eks-auto-remediation": [
+    3.520917219999319
+  ],
+  "aws-samples/terraform-aws-windows-workloads-on-aws": [
+    3.557833276998281
+  ],
+  "aws-samples/sample-aws-sa-genai": [
+    3.55393044199991
+  ],
+  "aws-samples/hub-and-spoke-with-inspection-vpc-terraform": [
+    3.5312172539997846
+  ],
+  "aws-samples/amazon-cloudfront-end-to-end-tracing-with-opentelemetry": [
+    3.566945714001122
+  ],
+  "aws-samples/cluster-amazon-elastic-compute-cloud-amazon-fsx-microsoft-sql-server": [
+    1.4547451750004257
+  ],
+  "aws-samples/eks-automated-monitoring": [
+    1.446127848001197
+  ],
+  "aws-samples/trigger-mwaa-dag-using-s3-event": [
+    3.5326729330008675
+  ],
+  "aws-samples/sample-platform-engineering-on-eks": [
+    3.5874134519999643
+  ],
+  "aws-samples/amazon-eks-use-sbom-to-find-container-image-with-vulnerable-software": [
+    3.5543267339999147
+  ],
+  "aws-samples/scp-management-reference-architecture": [
+    3.954017007999937
+  ],
+  "aws-samples/amazon-guardduty-for-aws-organizations-with-terraform": [
+    3.7325653650004824
+  ],
+  "aws-samples/sample-az-isolation-terraform": [
+    1.3299993750006252
+  ],
+  "aws-samples/sample-aws-appsync-bedrock-chatbot-terraform": [
+    3.522039441999368
+  ],
+  "aws-samples/terraform-rag-template-using-amazon-bedrock": [
+    3.9417530430000625
+  ],
+  "aws-samples/centralized-iam-key-management-aws-organizations-terraform": [
+    3.6201462729986815
+  ],
+  "aws-samples/eks-jumphost": [
+    0.0
+  ],
+  "aws-samples/sample-mainframe-transformation-e2e": [
+    3.601634755001214
+  ],
+  "aws-samples/sample-101-containers-workshop": [
+    3.539154709000286
+  ],
+  "aws-samples/amazon-bedrock-multiagent-orchestrator-terraform": [
+    7.436501632999352
+  ],
+  "aws-samples/sample-backstage-aws-terraform-platform": [
+    3.5232177380003122
+  ],
+  "aws-samples/serverless-samples": [
+    3.5368629790009436
+  ],
+  "aws-samples/sample-agentic-ai-lifecycle-iac": [
+    3.581407906000095
+  ],
+  "aws-samples/aws-organization-centralised-package-distribution": [
+    3.609964082999795
+  ],
+  "aws-samples/sample-agentic-insurance-claims-processing-eks": [
+    3.53119449299993
+  ],
+  "aws-samples/sample-for-amazon-connect-ms-teams-integration": [
+    3.599486328999774
+  ],
+  "aws-samples/sample-secure-agentic-payments-on-aws-x402": [
+    3.579398690999369
   ]
 }
